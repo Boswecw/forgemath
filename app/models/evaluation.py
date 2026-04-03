@@ -3,20 +3,23 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 from app.enums import (
     BudgetClass,
     CompatibilityResolutionState,
+    DeterministicAdmissionState,
     IncidentClass,
     LaneFamily,
     OutputPosture,
     PriorityClass,
+    RecomputationAction,
     ReplayState,
     ResultStatus,
     StaleState,
+    SupersessionClass,
     TraceTier,
     enum_values,
 )
@@ -73,7 +76,18 @@ class LaneEvaluation(ImmutablePersistedMixin, Base):
     trace_bundle_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True)
     replay_state: Mapped[str] = mapped_column(String(48), nullable=False)
     stale_state: Mapped[str] = mapped_column(String(48), nullable=False)
+    recomputation_action: Mapped[str] = mapped_column(String(32), nullable=False)
+    deterministic_admission_state: Mapped[str] = mapped_column(String(48), nullable=False)
+    runtime_validation_reason_code: Mapped[str] = mapped_column(String(255), nullable=False)
+    runtime_validation_reason_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    determinism_certificate_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bit_exact_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     superseded_by_evaluation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)
+    supersession_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    supersession_timestamp: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    supersession_class: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    lifecycle_reason_code: Mapped[str] = mapped_column(String(255), nullable=False)
+    lifecycle_reason_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_output_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     compatibility_tuple_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     compatibility_binding_payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
@@ -112,11 +126,121 @@ class LaneEvaluation(ImmutablePersistedMixin, Base):
             f"stale_state IN {_sql_in(StaleState)}",
             name="ck_forgemath_lane_evaluations_stale_state",
         ),
+        CheckConstraint(
+            f"recomputation_action IN {_sql_in(RecomputationAction)}",
+            name="ck_forgemath_lane_evaluations_recomputation_action",
+        ),
+        CheckConstraint(
+            f"deterministic_admission_state IN {_sql_in(DeterministicAdmissionState)}",
+            name="ck_forgemath_lane_evaluations_deterministic_admission_state",
+        ),
+        CheckConstraint(
+            f"supersession_class IS NULL OR supersession_class IN {_sql_in(SupersessionClass)}",
+            name="ck_forgemath_lane_evaluations_supersession_class",
+        ),
     )
 
     @classmethod
     def lifecycle_mutable_fields(cls) -> set[str]:
-        return {"superseded_by_evaluation_id"}
+        return {
+            "replay_state",
+            "stale_state",
+            "recomputation_action",
+            "superseded_by_evaluation_id",
+            "supersession_reason",
+            "supersession_timestamp",
+            "supersession_class",
+            "lifecycle_reason_code",
+            "lifecycle_reason_detail",
+        }
+
+
+class EvaluationLifecycleEvent(ImmutablePersistedMixin, Base):
+    __tablename__ = "forgemath_evaluation_lifecycle_events"
+
+    event_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    lane_evaluation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("forgemath_lane_evaluations.lane_evaluation_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    prior_replay_state: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    new_replay_state: Mapped[str] = mapped_column(String(48), nullable=False)
+    prior_stale_state: Mapped[str | None] = mapped_column(String(48), nullable=True)
+    new_stale_state: Mapped[str] = mapped_column(String(48), nullable=False)
+    prior_recomputation_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    new_recomputation_action: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(255), nullable=False)
+    reason_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    related_evaluation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "event_type <> ''",
+            name="ck_forgemath_evaluation_lifecycle_events_event_type_nonblank",
+        ),
+        CheckConstraint(
+            f"prior_replay_state IS NULL OR prior_replay_state IN {_sql_in(ReplayState)}",
+            name="ck_forgemath_evaluation_lifecycle_events_prior_replay_state",
+        ),
+        CheckConstraint(
+            f"new_replay_state IN {_sql_in(ReplayState)}",
+            name="ck_forgemath_evaluation_lifecycle_events_new_replay_state",
+        ),
+        CheckConstraint(
+            f"prior_stale_state IS NULL OR prior_stale_state IN {_sql_in(StaleState)}",
+            name="ck_forgemath_evaluation_lifecycle_events_prior_stale_state",
+        ),
+        CheckConstraint(
+            f"new_stale_state IN {_sql_in(StaleState)}",
+            name="ck_forgemath_evaluation_lifecycle_events_new_stale_state",
+        ),
+        CheckConstraint(
+            "prior_recomputation_action IS NULL "
+            f"OR prior_recomputation_action IN {_sql_in(RecomputationAction)}",
+            name="ck_fm_eval_lifecycle_evt_prior_recomp",
+        ),
+        CheckConstraint(
+            f"new_recomputation_action IN {_sql_in(RecomputationAction)}",
+            name="ck_fm_eval_lifecycle_evt_new_recomp",
+        ),
+    )
+
+
+class RuntimeAdmissionEvent(ImmutablePersistedMixin, Base):
+    __tablename__ = "forgemath_runtime_admission_events"
+
+    event_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    lane_evaluation_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("forgemath_lane_evaluations.lane_evaluation_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    runtime_profile_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    runtime_profile_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    admission_outcome: Mapped[str] = mapped_column(String(48), nullable=False)
+    reason_code: Mapped[str] = mapped_column(String(255), nullable=False)
+    reason_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    determinism_certificate_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bit_exact_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "runtime_profile_version > 0",
+            name="ck_fm_runtime_adm_evt_profile_ver_pos",
+        ),
+        CheckConstraint(
+            f"admission_outcome IN {_sql_in(DeterministicAdmissionState)}",
+            name="ck_forgemath_runtime_admission_events_admission_outcome",
+        ),
+    )
 
 
 class LaneOutputValue(ImmutablePersistedMixin, Base):
@@ -131,7 +255,7 @@ class LaneOutputValue(ImmutablePersistedMixin, Base):
     )
     output_field_name: Mapped[str] = mapped_column(String(255), nullable=False)
     output_posture: Mapped[str] = mapped_column(String(32), nullable=False)
-    numeric_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    numeric_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
     text_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     enum_value: Mapped[str | None] = mapped_column(String(255), nullable=True)
     value_range_class: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -139,6 +263,11 @@ class LaneOutputValue(ImmutablePersistedMixin, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
 
     __table_args__ = (
+        UniqueConstraint(
+            "lane_evaluation_id",
+            "output_field_name",
+            name="uq_forgemath_lane_output_values_lane_evaluation_field",
+        ),
         CheckConstraint(
             f"output_posture IN {_sql_in(OutputPosture)}",
             name="ck_forgemath_lane_output_values_output_posture",
@@ -157,14 +286,22 @@ class LaneFactorValue(ImmutablePersistedMixin, Base):
         index=True,
     )
     factor_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    raw_value: Mapped[float | None] = mapped_column(Float, nullable=True)
-    normalized_value: Mapped[float | None] = mapped_column(Float, nullable=True)
-    weighted_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    raw_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    normalized_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    weighted_value: Mapped[str | None] = mapped_column(String(128), nullable=True)
     omitted_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     omission_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     provenance_class: Mapped[str | None] = mapped_column(String(255), nullable=True)
     volatility_class: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "lane_evaluation_id",
+            "factor_name",
+            name="uq_forgemath_lane_factor_values_lane_evaluation_factor",
+        ),
+    )
 
 
 class TraceBundle(ImmutablePersistedMixin, Base):

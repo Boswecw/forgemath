@@ -11,12 +11,14 @@ from app.models.governance import (
     VariableRegistry,
 )
 from app.models.evaluation import (
+    EvaluationLifecycleEvent,
     InputBundle,
     IncidentRecord,
     LaneEvaluation,
     LaneFactorValue,
     LaneOutputValue,
     ReplayQueueEvent,
+    RuntimeAdmissionEvent,
     TraceBundle,
     TraceEvent,
 )
@@ -34,6 +36,8 @@ __all__ = [
     "MigrationPackage",
     "InputBundle",
     "LaneEvaluation",
+    "EvaluationLifecycleEvent",
+    "RuntimeAdmissionEvent",
     "LaneOutputValue",
     "LaneFactorValue",
     "TraceBundle",

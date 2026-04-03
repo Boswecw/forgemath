@@ -21,6 +21,7 @@ from app.schemas.evaluation import (
     LaneEvaluationCreate,
     LaneFactorValueCreate,
     LaneOutputValueCreate,
+    ManualLaneEvaluationCreate,
     ReplayQueueEventCreate,
     TraceBundleCreate,
     TraceEventCreate,
@@ -189,7 +190,7 @@ def _compatibility_binding(bindings):
     )
 
 
-def _evaluation_create(bindings, *, lane_evaluation_id: str = "eval-001", result_status: str = "computed_strict", compatibility_state: str = "resolved_hard_compatible", replay_state: str = "replay_safe", trace_tier: str = "tier_1_full", lane_family: str | None = None, supersedes_evaluation_id: str | None = None, raw_output_hash: str | None = "abc123", outputs: list[LaneOutputValueCreate] | None = None, factors: list[LaneFactorValueCreate] | None = None):
+def _evaluation_create(bindings, *, lane_evaluation_id: str = "eval-001", result_status: str = "computed_strict", compatibility_state: str = "resolved_hard_compatible", replay_state: str = "replay_safe", trace_tier: str = "tier_1_full", lane_family: str | None = None, supersedes_evaluation_id: str | None = None, raw_output_hash: str | None = None, outputs: list[LaneOutputValueCreate] | None = None, factors: list[LaneFactorValueCreate] | None = None, execution_mode: str = "governed_canonical_seed"):
     lane_spec = bindings["lane_spec"]
     family = lane_family or lane_spec.lane_family
     output_values = outputs if outputs is not None else [
@@ -213,10 +214,17 @@ def _evaluation_create(bindings, *, lane_evaluation_id: str = "eval-001", result
     return LaneEvaluationCreate(
         lane_evaluation_id=lane_evaluation_id,
         supersedes_evaluation_id=supersedes_evaluation_id,
+        supersession_class="parameter_supersession" if supersedes_evaluation_id else None,
+        supersession_reason="new governed evaluation supersedes prior lineage"
+        if supersedes_evaluation_id
+        else None,
+        supersession_timestamp=datetime(2026, 4, 2, 12, 30, tzinfo=timezone.utc)
+        if supersedes_evaluation_id
+        else None,
         lane_id=lane_spec.lane_id,
         lane_spec_version=lane_spec.version,
         lane_family=family,
-        execution_mode="governed_manual_ingest",
+        execution_mode=execution_mode,
         result_status=result_status,
         compatibility_resolution_state=compatibility_state,
         runtime_profile_id=bindings["runtime_profile"].runtime_profile_id,
@@ -224,6 +232,19 @@ def _evaluation_create(bindings, *, lane_evaluation_id: str = "eval-001", result
         input_bundle_id="bundle-001",
         replay_state=replay_state,
         stale_state="fresh",
+        recomputation_action=(
+            "preserve_as_audit_only"
+            if result_status in {"blocked", "audit_only", "invalid"}
+            or replay_state in {"audit_readable_only", "not_replayable"}
+            else "no_recompute_needed"
+        ),
+        lifecycle_reason_code=(
+            "audit_seeded_state"
+            if result_status in {"blocked", "audit_only", "invalid"}
+            or replay_state in {"audit_readable_only", "not_replayable"}
+            else "initial_state_recorded"
+        ),
+        lifecycle_reason_detail="phase2 compatibility-seeded lifecycle posture",
         raw_output_hash=raw_output_hash,
         compatibility_binding=_compatibility_binding(bindings),
         output_values=output_values,
@@ -246,21 +267,70 @@ def _evaluation_create(bindings, *, lane_evaluation_id: str = "eval-001", result
     )
 
 
-def test_create_lane_evaluation_and_fetch_detail(db):
+def _manual_evaluation_create(
+    bindings,
+    *,
+    lane_evaluation_id: str = "manual-eval-001",
+    result_status: str = "audit_only",
+    compatibility_state: str = "audit_only",
+    replay_state: str = "audit_readable_only",
+    supersedes_evaluation_id: str | None = None,
+):
+    lane_spec = bindings["lane_spec"]
+    return ManualLaneEvaluationCreate(
+        lane_evaluation_id=lane_evaluation_id,
+        supersedes_evaluation_id=supersedes_evaluation_id,
+        supersession_class="projection_supersession" if supersedes_evaluation_id else None,
+        supersession_reason="manual audit record supersedes prior manual lineage" if supersedes_evaluation_id else None,
+        supersession_timestamp=datetime(2026, 4, 2, 12, 30, tzinfo=timezone.utc) if supersedes_evaluation_id else None,
+        lane_id=lane_spec.lane_id,
+        lane_spec_version=lane_spec.version,
+        lane_family=lane_spec.lane_family,
+        result_status=result_status,
+        compatibility_resolution_state=compatibility_state,
+        runtime_profile_id=bindings["runtime_profile"].runtime_profile_id,
+        runtime_profile_version=bindings["runtime_profile"].version,
+        input_bundle_id="bundle-001",
+        replay_state=replay_state,
+        stale_state="fresh",
+        recomputation_action="preserve_as_audit_only",
+        lifecycle_reason_code="manual_audit_ingest",
+        lifecycle_reason_detail="Governed manual ingest for non-computed historical visibility.",
+        compatibility_binding=_compatibility_binding(bindings),
+        trace_bundle=TraceBundleCreate(
+            trace_bundle_id=f"trace-{lane_evaluation_id}",
+            trace_tier="tier_1_full",
+            trace_schema_version=1,
+            reconstructable_flag=True,
+            trace_events=[
+                TraceEventCreate(
+                    trace_step_order=0,
+                    trace_event_type="manual_ingest_recorded",
+                    trace_payload_ref="trace://manual-ingest",
+                    trace_summary="Manual non-computed lineage record persisted.",
+                )
+            ],
+        ),
+        created_by="phase2-test",
+    )
+
+
+def test_create_manual_lane_evaluation_and_fetch_detail(db):
     bindings = _seed_phase1_bindings(db)
     bundle = _create_input_bundle(db, bindings)
     assert bundle.input_bundle_id == "bundle-001"
 
-    created = create_lane_evaluation(_evaluation_create(bindings), db)
-    assert created.lane_evaluation_id == "eval-001"
-    assert created.trace_bundle.trace_bundle_id == "trace-eval-001"
+    created = create_lane_evaluation(_manual_evaluation_create(bindings), db)
+    assert created.lane_evaluation_id == "manual-eval-001"
+    assert created.trace_bundle.trace_bundle_id == "trace-manual-eval-001"
     assert created.scope_id == bindings["scope"].scope_id
-    assert len(created.output_values) == 1
-    assert len(created.factor_values) == 1
+    assert created.recomputation_action == "preserve_as_audit_only"
+    assert len(created.output_values) == 0
+    assert len(created.factor_values) == 0
 
-    fetched = get_lane_evaluation("eval-001", db)
+    fetched = get_lane_evaluation("manual-eval-001", db)
     assert fetched.compatibility_tuple_hash == created.compatibility_tuple_hash
-    assert fetched.trace_bundle.trace_events[0].trace_event_type == "bundle_bound"
+    assert fetched.trace_bundle.trace_events[0].trace_event_type == "manual_ingest_recorded"
 
 
 def test_evaluation_rejects_unfrozen_input_bundle(db):
@@ -284,7 +354,7 @@ def test_evaluation_rejects_unfrozen_input_bundle(db):
     db.commit()
 
     with pytest.raises(HTTPException) as exc_info:
-        create_lane_evaluation(_evaluation_create(bindings), db)
+        create_lane_evaluation(_manual_evaluation_create(bindings), db)
 
     assert exc_info.value.status_code == 400
     assert "frozen input bundle" in exc_info.value.detail
@@ -294,43 +364,42 @@ def test_evaluation_rejects_blocked_incompatible_strict_result(db):
     bindings = _seed_phase1_bindings(db)
     _create_input_bundle(db, bindings)
 
-    with pytest.raises(HTTPException) as exc_info:
-        create_lane_evaluation(
+    with pytest.raises(registry_service.GovernanceValidationError) as exc_info:
+        evaluation_service.create_lane_evaluation(
+            db,
             _evaluation_create(
                 bindings,
                 compatibility_state="blocked_incompatible",
                 replay_state="not_replayable",
             ),
-            db,
         )
 
-    assert exc_info.value.status_code == 400
-    assert "blocked_incompatible" in exc_info.value.detail
+    assert "blocked_incompatible" in str(exc_info.value)
 
 
 def test_evaluation_rejects_insufficient_trace_tier(db):
     bindings = _seed_phase1_bindings(db)
     _create_input_bundle(db, bindings)
 
-    with pytest.raises(HTTPException) as exc_info:
-        create_lane_evaluation(
+    with pytest.raises(registry_service.GovernanceValidationError) as exc_info:
+        evaluation_service.create_lane_evaluation(
+            db,
             _evaluation_create(
                 bindings,
                 trace_tier="tier_3_reconstruction",
             ),
-            db,
         )
 
-    assert exc_info.value.status_code == 400
-    assert "trace_tier" in exc_info.value.detail
+    assert "trace_tier" in str(exc_info.value)
 
 
 def test_hybrid_gate_lane_rejects_scalar_only_output(db):
     bindings = _seed_phase1_bindings(db, lane_id="reviewability", lane_family="hybrid_gate")
     _create_input_bundle(db, bindings)
 
-    with pytest.raises(HTTPException) as exc_info:
-        create_lane_evaluation(
+    with pytest.raises(registry_service.GovernanceValidationError) as exc_info:
+        evaluation_service.create_lane_evaluation(
+            db,
             _evaluation_create(
                 bindings,
                 lane_evaluation_id="eval-hybrid-001",
@@ -344,11 +413,37 @@ def test_hybrid_gate_lane_rejects_scalar_only_output(db):
                     )
                 ],
             ),
-            db,
         )
 
-    assert exc_info.value.status_code == 400
-    assert "hybrid_gate" in exc_info.value.detail
+    assert "hybrid_gate" in str(exc_info.value)
+
+
+def test_evaluation_rejects_cross_lane_parameter_binding(db):
+    bindings = _seed_phase1_bindings(db)
+    _create_input_bundle(db, bindings)
+    foreign_bindings = _seed_phase1_bindings(db, lane_id="foreign_lane")
+
+    body = _evaluation_create(bindings)
+    body.compatibility_binding.parameter_set_id = foreign_bindings["parameter_set"].parameter_set_id
+    body.compatibility_binding.compatibility_tuple.parameter_set_version = foreign_bindings["parameter_set"].version
+
+    with pytest.raises(registry_service.GovernanceValidationError) as exc_info:
+        evaluation_service.create_lane_evaluation(db, body)
+
+    assert "must bind to lane_id verification_burden" in str(exc_info.value)
+
+
+def test_evaluation_rejects_mismatched_raw_output_hash(db):
+    bindings = _seed_phase1_bindings(db)
+    _create_input_bundle(db, bindings)
+
+    with pytest.raises(registry_service.GovernanceValidationError) as exc_info:
+        evaluation_service.create_lane_evaluation(
+            db,
+            _evaluation_create(bindings, raw_output_hash="spoofed-output-hash"),
+        )
+
+    assert "raw_output_hash must match" in str(exc_info.value)
 
 
 def test_blocked_evaluation_and_lineage_visibility_are_preserved(db):
@@ -356,22 +451,12 @@ def test_blocked_evaluation_and_lineage_visibility_are_preserved(db):
     _create_input_bundle(db, bindings)
 
     blocked = create_lane_evaluation(
-        _evaluation_create(
+        _manual_evaluation_create(
             bindings,
-            lane_evaluation_id="eval-blocked-001",
+            lane_evaluation_id="manual-blocked-001",
             result_status="blocked",
             compatibility_state="blocked_incompatible",
             replay_state="not_replayable",
-            raw_output_hash=None,
-            outputs=[
-                LaneOutputValueCreate(
-                    output_field_name="reviewability_gate",
-                    output_posture="gated",
-                    text_value="blocked_due_to_compatibility",
-                    is_primary_output=True,
-                )
-            ],
-            factors=[],
         ),
         db,
     )
@@ -379,34 +464,25 @@ def test_blocked_evaluation_and_lineage_visibility_are_preserved(db):
     assert blocked.compatibility_resolution_state == "blocked_incompatible"
 
     superseding = create_lane_evaluation(
-        _evaluation_create(
+        _manual_evaluation_create(
             bindings,
-            lane_evaluation_id="eval-blocked-002",
+            lane_evaluation_id="manual-blocked-002",
             result_status="audit_only",
             compatibility_state="audit_only",
             replay_state="audit_readable_only",
-            raw_output_hash=None,
-            supersedes_evaluation_id="eval-blocked-001",
-            outputs=[
-                LaneOutputValueCreate(
-                    output_field_name="reviewability_gate",
-                    output_posture="classified",
-                    enum_value="audit_only",
-                    is_primary_output=True,
-                )
-            ],
-            factors=[],
+            supersedes_evaluation_id="manual-blocked-001",
         ),
         db,
     )
-    previous = evaluation_service.get_lane_evaluation(db, "eval-blocked-001")
+    previous = evaluation_service.get_lane_evaluation(db, "manual-blocked-001")
     assert previous.superseded_by_evaluation_id == superseding.lane_evaluation_id
+    assert previous.recomputation_action == "preserve_as_audit_only"
 
 
 def test_create_replay_queue_and_incident_records(db):
     bindings = _seed_phase1_bindings(db)
     _create_input_bundle(db, bindings)
-    create_lane_evaluation(_evaluation_create(bindings), db)
+    evaluation_service.create_lane_evaluation(db, _evaluation_create(bindings))
 
     replay = create_replay_queue_event(
         ReplayQueueEventCreate(

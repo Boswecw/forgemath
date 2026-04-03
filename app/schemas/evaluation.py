@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256
@@ -11,13 +12,16 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from app.enums import (
     BudgetClass,
     CompatibilityResolutionState,
+    DeterministicAdmissionState,
     IncidentClass,
     LaneFamily,
     OutputPosture,
     PriorityClass,
+    RecomputationAction,
     ReplayState,
     ResultStatus,
     StaleState,
+    SupersessionClass,
     TraceTier,
 )
 from app.schemas.governance import CompatibilityTuple
@@ -88,7 +92,7 @@ class CompatibilityBinding(BaseModel):
 class LaneOutputValueCreate(BaseModel):
     output_field_name: str = Field(min_length=1, max_length=255)
     output_posture: OutputPosture
-    numeric_value: float | None = None
+    numeric_value: Decimal | None = None
     text_value: str | None = None
     enum_value: str | None = Field(default=None, max_length=255)
     value_range_class: str | None = Field(default=None, max_length=255)
@@ -106,7 +110,7 @@ class LaneOutputValueRead(EvaluationReadModel):
     lane_evaluation_id: str
     output_field_name: str
     output_posture: OutputPosture
-    numeric_value: float | None
+    numeric_value: Decimal | None
     text_value: str | None
     enum_value: str | None
     value_range_class: str | None
@@ -116,9 +120,9 @@ class LaneOutputValueRead(EvaluationReadModel):
 
 class LaneFactorValueCreate(BaseModel):
     factor_name: str = Field(min_length=1, max_length=255)
-    raw_value: float | None = None
-    normalized_value: float | None = None
-    weighted_value: float | None = None
+    raw_value: Decimal | None = None
+    normalized_value: Decimal | None = None
+    weighted_value: Decimal | None = None
     omitted_flag: bool = False
     omission_reason: str | None = None
     provenance_class: str | None = Field(default=None, max_length=255)
@@ -139,9 +143,9 @@ class LaneFactorValueRead(EvaluationReadModel):
     id: str
     lane_evaluation_id: str
     factor_name: str
-    raw_value: float | None
-    normalized_value: float | None
-    weighted_value: float | None
+    raw_value: Decimal | None
+    normalized_value: Decimal | None
+    weighted_value: Decimal | None
     omitted_flag: bool
     omission_reason: str | None
     provenance_class: str | None
@@ -188,6 +192,9 @@ class TraceBundleRead(EvaluationReadModel):
 class LaneEvaluationCreate(BaseModel):
     lane_evaluation_id: str = Field(min_length=1, max_length=36)
     supersedes_evaluation_id: str | None = Field(default=None, max_length=36)
+    supersession_class: SupersessionClass | None = None
+    supersession_reason: str | None = None
+    supersession_timestamp: datetime | None = None
     lane_id: str = Field(min_length=1, max_length=255)
     lane_spec_version: int = Field(gt=0)
     lane_family: LaneFamily
@@ -199,6 +206,9 @@ class LaneEvaluationCreate(BaseModel):
     input_bundle_id: str = Field(min_length=1, max_length=36)
     replay_state: ReplayState
     stale_state: StaleState
+    recomputation_action: RecomputationAction
+    lifecycle_reason_code: str = Field(min_length=1, max_length=255)
+    lifecycle_reason_detail: str | None = None
     raw_output_hash: str | None = Field(default=None, min_length=1, max_length=64)
     scope_id: str | None = Field(default=None, max_length=255)
     scope_version: int | None = Field(default=None, gt=0)
@@ -210,11 +220,96 @@ class LaneEvaluationCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_summary_fields(self) -> "LaneEvaluationCreate":
-        if self.raw_output_hash is None and self.result_status in {
-            ResultStatus.COMPUTED_STRICT,
-            ResultStatus.COMPUTED_DEGRADED,
+        has_supersession_target = self.supersedes_evaluation_id is not None
+        has_supersession_metadata = any(
+            item is not None
+            for item in (
+                self.supersession_class,
+                self.supersession_reason,
+                self.supersession_timestamp,
+            )
+        )
+        if has_supersession_target and not all(
+            item is not None
+            for item in (
+                self.supersession_class,
+                self.supersession_reason,
+                self.supersession_timestamp,
+            )
+        ):
+            raise ValueError(
+                "superseding evaluation creation requires supersession_class, supersession_reason, "
+                "and supersession_timestamp."
+            )
+        if not has_supersession_target and has_supersession_metadata:
+            raise ValueError("supersession metadata is only valid when supersedes_evaluation_id is provided.")
+        return self
+
+
+class ManualLaneEvaluationCreate(BaseModel):
+    lane_evaluation_id: str = Field(min_length=1, max_length=36)
+    supersedes_evaluation_id: str | None = Field(default=None, max_length=36)
+    supersession_class: SupersessionClass | None = None
+    supersession_reason: str | None = None
+    supersession_timestamp: datetime | None = None
+    lane_id: str = Field(min_length=1, max_length=255)
+    lane_spec_version: int = Field(gt=0)
+    lane_family: LaneFamily
+    result_status: ResultStatus
+    compatibility_resolution_state: CompatibilityResolutionState
+    runtime_profile_id: str = Field(min_length=1, max_length=255)
+    runtime_profile_version: int = Field(gt=0)
+    input_bundle_id: str = Field(min_length=1, max_length=36)
+    replay_state: ReplayState
+    stale_state: StaleState
+    recomputation_action: RecomputationAction
+    lifecycle_reason_code: str = Field(min_length=1, max_length=255)
+    lifecycle_reason_detail: str | None = None
+    scope_id: str | None = Field(default=None, max_length=255)
+    scope_version: int | None = Field(default=None, gt=0)
+    compatibility_binding: CompatibilityBinding
+    trace_bundle: TraceBundleCreate
+    created_by: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def validate_manual_ingest_posture(self) -> "ManualLaneEvaluationCreate":
+        if self.result_status not in {
+            ResultStatus.BLOCKED,
+            ResultStatus.AUDIT_ONLY,
+            ResultStatus.INVALID,
         }:
-            raise ValueError("computed evaluations require raw_output_hash.")
+            raise ValueError(
+                "manual lane evaluation ingestion may only persist blocked, audit_only, or invalid results."
+            )
+        if self.replay_state in {
+            ReplayState.REPLAY_SAFE,
+            ReplayState.REPLAY_SAFE_WITH_BOUNDED_MIGRATION,
+        }:
+            raise ValueError(
+                "manual lane evaluation ingestion may not claim replay_safe or replay_safe_with_bounded_migration."
+            )
+        has_supersession_target = self.supersedes_evaluation_id is not None
+        has_supersession_metadata = any(
+            item is not None
+            for item in (
+                self.supersession_class,
+                self.supersession_reason,
+                self.supersession_timestamp,
+            )
+        )
+        if has_supersession_target and not all(
+            item is not None
+            for item in (
+                self.supersession_class,
+                self.supersession_reason,
+                self.supersession_timestamp,
+            )
+        ):
+            raise ValueError(
+                "manual supersession requires supersession_class, supersession_reason, and supersession_timestamp."
+            )
+        if not has_supersession_target and has_supersession_metadata:
+            raise ValueError("supersession metadata is only valid when supersedes_evaluation_id is provided.")
         return self
 
 
@@ -232,7 +327,18 @@ class LaneEvaluationSummaryRead(EvaluationReadModel):
     trace_bundle_id: str
     replay_state: ReplayState
     stale_state: StaleState
+    recomputation_action: RecomputationAction
+    deterministic_admission_state: DeterministicAdmissionState
+    runtime_validation_reason_code: str
+    runtime_validation_reason_detail: str | None
+    determinism_certificate_ref: str | None
+    bit_exact_eligible: bool
     superseded_by_evaluation_id: str | None
+    supersession_reason: str | None
+    supersession_timestamp: datetime | None
+    supersession_class: SupersessionClass | None
+    lifecycle_reason_code: str
+    lifecycle_reason_detail: str | None
     raw_output_hash: str | None
     compatibility_tuple_hash: str
     scope_id: str | None
@@ -246,6 +352,118 @@ class LaneEvaluationDetailRead(LaneEvaluationSummaryRead):
     output_values: list[LaneOutputValueRead] = Field(default_factory=list)
     factor_values: list[LaneFactorValueRead] = Field(default_factory=list)
     trace_bundle: TraceBundleRead
+
+
+class RuntimeAdmissionEventRead(EvaluationReadModel):
+    event_id: str
+    lane_evaluation_id: str
+    runtime_profile_id: str
+    runtime_profile_version: int
+    admission_outcome: DeterministicAdmissionState
+    reason_code: str
+    reason_detail: str | None
+    determinism_certificate_ref: str | None
+    bit_exact_eligible: bool
+    created_at: datetime
+    created_by: str | None
+
+
+class LaneEvaluationRuntimeAdmissionRead(EvaluationReadModel):
+    lane_evaluation_id: str
+    runtime_profile_id: str
+    runtime_profile_version: int
+    deterministic_admission_state: DeterministicAdmissionState
+    runtime_validation_reason_code: str
+    runtime_validation_reason_detail: str | None
+    determinism_certificate_ref: str | None
+    bit_exact_eligible: bool
+    current_runtime_profile_present: bool
+    current_runtime_profile_active: bool
+    current_runtime_profile_non_deterministic: bool | None
+    runtime_admission_events: list[RuntimeAdmissionEventRead] = Field(default_factory=list)
+
+
+class LaneEvaluationLifecycleEventRead(EvaluationReadModel):
+    event_id: str
+    lane_evaluation_id: str
+    event_type: str
+    prior_replay_state: ReplayState | None
+    new_replay_state: ReplayState
+    prior_stale_state: StaleState | None
+    new_stale_state: StaleState
+    prior_recomputation_action: RecomputationAction | None
+    new_recomputation_action: RecomputationAction
+    reason_code: str
+    reason_detail: str | None
+    related_evaluation_id: str | None
+    created_at: datetime
+    created_by: str | None
+
+
+class LaneEvaluationLifecycleRead(EvaluationReadModel):
+    lane_evaluation_id: str
+    lane_id: str
+    result_status: ResultStatus
+    compatibility_resolution_state: CompatibilityResolutionState
+    replay_state: ReplayState
+    stale_state: StaleState
+    recomputation_action: RecomputationAction
+    superseded_by_evaluation_id: str | None
+    supersession_reason: str | None
+    supersession_timestamp: datetime | None
+    supersession_class: SupersessionClass | None
+    lifecycle_reason_code: str
+    lifecycle_reason_detail: str | None
+    created_at: datetime
+    created_by: str | None
+    lifecycle_events: list[LaneEvaluationLifecycleEventRead] = Field(default_factory=list)
+
+
+class LaneEvaluationLifecycleTransitionCreate(BaseModel):
+    replay_state: ReplayState
+    stale_state: StaleState
+    recomputation_action: RecomputationAction
+    lifecycle_reason_code: str = Field(min_length=1, max_length=255)
+    lifecycle_reason_detail: str | None = None
+    related_evaluation_id: str | None = Field(default=None, max_length=36)
+    supersession_class: SupersessionClass | None = None
+    supersession_reason: str | None = None
+    supersession_timestamp: datetime | None = None
+    input_bundle_invalidated: bool = False
+    created_by: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def validate_supersession_bundle(self) -> "LaneEvaluationLifecycleTransitionCreate":
+        has_related = self.related_evaluation_id is not None
+        has_supersession_metadata = any(
+            item is not None
+            for item in (
+                self.supersession_class,
+                self.supersession_reason,
+                self.supersession_timestamp,
+            )
+        )
+        if has_related and not all(
+            item is not None
+            for item in (
+                self.supersession_class,
+                self.supersession_reason,
+                self.supersession_timestamp,
+            )
+        ):
+            raise ValueError(
+                "supersession transitions require supersession_class, supersession_reason, "
+                "and supersession_timestamp."
+            )
+        if not has_related and has_supersession_metadata:
+            raise ValueError("supersession metadata requires related_evaluation_id.")
+        return self
+
+
+class LaneEvaluationLineageRead(EvaluationReadModel):
+    anchor_lane_evaluation_id: str
+    lane_id: str
+    lineage: list[LaneEvaluationSummaryRead] = Field(default_factory=list)
 
 
 class ReplayQueueEventCreate(BaseModel):

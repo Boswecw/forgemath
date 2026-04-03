@@ -1,5 +1,8 @@
 # ForgeMath Governance Foundation Module Spec
 
+> Legacy Phase 1 module-spec artifact. Current repo truth is maintained in
+> [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md).
+
 **Date:** April 2, 2026  
 **Time:** America/Kentucky/Louisville  
 **Intended destination:** `ForgeMath/docs/forgemath_governance_foundation_module_spec.md`
@@ -50,4 +53,3 @@ All routes live under `/api/v1/forgemath/governance`.
 - superseding an active version requires a retirement reason
 - payloads are immutable once persisted
 - canonical runtime profiles reject `non_determinism_allowed_flag = true`
-

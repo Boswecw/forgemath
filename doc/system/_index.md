@@ -3,7 +3,7 @@
 > Canonical authority substrate for governed lane math in the Forge ecosystem.
 > "Canonical truth before canonical execution."
 
-**Document version:** 1.0 (2026-04-02) — Initial Phase 1 foundation
+**Document version:** 1.6 (2026-04-02) — Phase 6 authority and numeric hardening
 
 ---
 
@@ -24,4 +24,3 @@
 13. [Error Handling Contract](#13-error-handling-contract)
 14. [Testing Infrastructure](#14-testing-infrastructure)
 15. [Handover / Migration Notes](#15-handover--migration-notes)
-

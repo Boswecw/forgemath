@@ -1,5 +1,9 @@
 # ForgeMath Extended Roadmap
 
+> Legacy planning artifact. Current implemented repo truth is tracked in
+> [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md).
+> Use this file as historical roadmap context, not as the current implementation receipt.
+
 **Date:** April 2, 2026  
 **Time:** America/Kentucky/Louisville  
 **Intended destination:** `ForgeMath/docs/forge_math_extended_roadmap.md`
@@ -59,4 +63,3 @@ It distinguishes current reality from later-phase work.
 - migration execution controls
 - security roles and protected actions
 - operator workload and replay budgeting
-

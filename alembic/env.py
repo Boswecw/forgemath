@@ -17,7 +17,8 @@ from app.models import governance  # noqa: F401,E402
 from app.models import evaluation  # noqa: F401,E402
 
 config = context.config
-database_url = os.getenv("FORGEMATH_DATABASE_URL", "sqlite:///./forgemath.db")
+configured_database_url = (config.get_main_option("sqlalchemy.url") or "").strip()
+database_url = configured_database_url or os.getenv("FORGEMATH_DATABASE_URL") or "sqlite:///./forgemath.db"
 config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:

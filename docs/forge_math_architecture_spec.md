@@ -1,5 +1,10 @@
 # ForgeMath Architecture Spec
 
+> Legacy planning artifact. Current repo truth now lives in
+> [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md).
+> This file captures early Phase 1 architecture intent and is not the authoritative
+> description of the current Phase 1-6 implementation.
+
 **Date:** April 2, 2026  
 **Time:** America/Kentucky/Louisville  
 **Intended destination:** `ForgeMath/docs/forge_math_architecture_spec.md`
@@ -8,8 +13,9 @@
 
 ## Purpose
 
-This architecture spec localizes the governing ForgeMath design into the new repo.
-It describes the current repository boundary and Phase 1 implementation posture.
+This architecture spec localizes the governing ForgeMath design into the repo at the
+time of initial Phase 1 setup. It does not fully describe the current hardened
+Phase 1-6 repository state.
 
 ## Authority Boundary
 
@@ -57,4 +63,3 @@ Payload mutation in place is forbidden.
 The repo is intentionally standalone in Phase 1.
 It does not currently call other Forge services at runtime.
 Downstream ecosystem consumers are expected later, but those integrations remain roadmap items until the canonical substrate is stable.
-

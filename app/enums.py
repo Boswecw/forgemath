@@ -37,6 +37,30 @@ class StaleState(StrEnum):
     STALE_DETERMINISM_RETIRED = "stale_determinism_retired"
 
 
+class DeterministicAdmissionState(StrEnum):
+    ADMITTED_CANONICAL_DETERMINISTIC = "admitted_canonical_deterministic"
+    BLOCKED_MISSING_RUNTIME_PROFILE = "blocked_missing_runtime_profile"
+    BLOCKED_INCOMPLETE_RUNTIME_PROFILE = "blocked_incomplete_runtime_profile"
+    BLOCKED_NON_DETERMINISTIC_PROFILE = "blocked_non_deterministic_profile"
+    BLOCKED_RETIRED_RUNTIME_PROFILE = "blocked_retired_runtime_profile"
+    BLOCKED_RUNTIME_INCOMPATIBLE = "blocked_runtime_incompatible"
+
+
+class RecomputationAction(StrEnum):
+    NO_RECOMPUTE_NEEDED = "no_recompute_needed"
+    OPTIONAL_RECOMPUTE = "optional_recompute"
+    MANDATORY_RECOMPUTE = "mandatory_recompute"
+    PRESERVE_AS_AUDIT_ONLY = "preserve_as_audit_only"
+
+
+class SupersessionClass(StrEnum):
+    INPUT_SUPERSESSION = "input_supersession"
+    PARAMETER_SUPERSESSION = "parameter_supersession"
+    POLICY_SUPERSESSION = "policy_supersession"
+    SEMANTIC_SUPERSESSION = "semantic_supersession"
+    PROJECTION_SUPERSESSION = "projection_supersession"
+
+
 class CompatibilityResolutionState(StrEnum):
     RESOLVED_HARD_COMPATIBLE = "resolved_hard_compatible"
     RESOLVED_WITH_BOUNDED_MIGRATION = "resolved_with_bounded_migration"

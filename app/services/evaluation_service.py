@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 import json
 from typing import Any
@@ -33,12 +34,14 @@ from app.schemas.evaluation import (
     LaneEvaluationCreate,
     LaneEvaluationDetailRead,
     LaneFactorValueRead,
+    ManualLaneEvaluationCreate,
     LaneOutputValueRead,
     LaneEvaluationSummaryRead,
     ReplayQueueEventCreate,
     TraceBundleRead,
     TraceEventRead,
 )
+from app.services import lifecycle_service, runtime_admission_service
 from app.services.registry_service import (
     GovernanceConflictError,
     GovernanceNotFoundError,
@@ -61,6 +64,99 @@ def _canonical_json(payload: Any) -> str:
 
 def _hash_payload(payload: Any) -> str:
     return sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def _require_lane_binding(record: Any, lane_id: str, label: str) -> None:
+    bound_lane_id = getattr(record, "lane_id", None)
+    if bound_lane_id is not None and bound_lane_id != lane_id:
+        raise GovernanceValidationError(f"{label} must bind to lane_id {lane_id}.")
+
+
+def _canonical_decimal_text(value: Decimal | None, label: str) -> str | None:
+    if value is None:
+        return None
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise GovernanceValidationError(f"{label} must be a deterministic decimal value.") from exc
+    normalized = decimal_value.normalize()
+    text = format(normalized, "f")
+    if text == "-0":
+        return "0"
+    return text
+
+
+def _validate_unique_output_fields(body: LaneEvaluationCreate) -> None:
+    field_names = [output.output_field_name for output in body.output_values]
+    if len(field_names) != len(set(field_names)):
+        raise GovernanceValidationError("lane evaluation output_field_name values must be unique per evaluation.")
+
+
+def _validate_unique_factor_names(body: LaneEvaluationCreate) -> None:
+    factor_names = [factor.factor_name for factor in body.factor_values]
+    if len(factor_names) != len(set(factor_names)):
+        raise GovernanceValidationError("lane evaluation factor_name values must be unique per evaluation.")
+
+
+def _serialized_output_values(output_values: list[Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "output_field_name": _clean_identifier(output.output_field_name, "output_field_name"),
+            "output_posture": output.output_posture.value,
+            "numeric_value": _canonical_decimal_text(output.numeric_value, f"{output.output_field_name}.numeric_value"),
+            "text_value": _clean_optional_text(output.text_value),
+            "enum_value": _clean_optional_text(output.enum_value),
+            "value_range_class": _clean_optional_text(output.value_range_class),
+            "is_primary_output": output.is_primary_output,
+        }
+        for output in output_values
+    ]
+
+
+def _serialized_factor_values(factor_values: list[Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "factor_name": _clean_identifier(factor.factor_name, "factor_name"),
+            "raw_value": _canonical_decimal_text(factor.raw_value, f"{factor.factor_name}.raw_value"),
+            "normalized_value": _canonical_decimal_text(
+                factor.normalized_value,
+                f"{factor.factor_name}.normalized_value",
+            ),
+            "weighted_value": _canonical_decimal_text(
+                factor.weighted_value,
+                f"{factor.factor_name}.weighted_value",
+            ),
+            "omitted_flag": factor.omitted_flag,
+            "omission_reason": _clean_optional_text(factor.omission_reason),
+            "provenance_class": _clean_optional_text(factor.provenance_class),
+            "volatility_class": _clean_optional_text(factor.volatility_class),
+        }
+        for factor in factor_values
+    ]
+
+
+def _derive_raw_output_hash(
+    *,
+    result_status: str,
+    serialized_output_values: list[dict[str, Any]],
+    serialized_factor_values: list[dict[str, Any]],
+    trace_bundle_hash: str,
+) -> str | None:
+    if result_status not in {
+        ResultStatus.COMPUTED_STRICT.value,
+        ResultStatus.COMPUTED_DEGRADED.value,
+    }:
+        return None
+    canonical_outputs = sorted(serialized_output_values, key=lambda item: item["output_field_name"])
+    canonical_factors = sorted(serialized_factor_values, key=lambda item: item["factor_name"])
+    return _hash_payload(
+        {
+            "result_status": result_status,
+            "output_values": canonical_outputs,
+            "factor_values": canonical_factors,
+            "trace_bundle_hash": trace_bundle_hash,
+        }
+    )
 
 
 TRACE_TIER_RANK = {
@@ -99,11 +195,10 @@ def _validate_lane_spec(record: Any, lane_id: str, lane_family: str) -> None:
 
 
 def _validate_runtime_profile(record: Any, runtime_profile_id: str) -> None:
-    _require_active_binding(record, f"RuntimeProfile {runtime_profile_id} version {record.version}")
-    if record.non_determinism_allowed_flag:
-        raise GovernanceValidationError(
-            "Canonical evaluations require a deterministic runtime profile."
-        )
+    runtime_admission_service.validate_runtime_profile_for_canonical_execution(
+        record,
+        runtime_profile_id,
+    )
 
 
 def _validate_policy_bundle_kind(record: PolicyBundle, expected_kind: PolicyBundleKind, label: str) -> None:
@@ -216,6 +311,11 @@ def _validate_compatibility_binding(db: Session, body: LaneEvaluationCreate) -> 
         parameter_set,
         f"ParameterSet {binding.parameter_set_id} version {compatibility_tuple.parameter_set_version}",
     )
+    _require_lane_binding(
+        parameter_set,
+        body.lane_id,
+        f"ParameterSet {binding.parameter_set_id} version {compatibility_tuple.parameter_set_version}",
+    )
 
     threshold_set = get_threshold_set(
         db,
@@ -224,6 +324,11 @@ def _validate_compatibility_binding(db: Session, body: LaneEvaluationCreate) -> 
     )
     _require_active_binding(
         threshold_set,
+        f"ThresholdSet {binding.threshold_set_id} version {compatibility_tuple.threshold_registry_version}",
+    )
+    _require_lane_binding(
+        threshold_set,
+        body.lane_id,
         f"ThresholdSet {binding.threshold_set_id} version {compatibility_tuple.threshold_registry_version}",
     )
 
@@ -237,6 +342,11 @@ def _validate_compatibility_binding(db: Session, body: LaneEvaluationCreate) -> 
         PolicyBundleKind.NULL_POLICY,
         f"PolicyBundle {binding.null_policy_bundle_id} version {compatibility_tuple.null_policy_version}",
     )
+    _require_lane_binding(
+        null_policy,
+        body.lane_id,
+        f"PolicyBundle {binding.null_policy_bundle_id} version {compatibility_tuple.null_policy_version}",
+    )
 
     degraded_policy = get_policy_bundle(
         db,
@@ -246,6 +356,14 @@ def _validate_compatibility_binding(db: Session, body: LaneEvaluationCreate) -> 
     _validate_policy_bundle_kind(
         degraded_policy,
         PolicyBundleKind.DEGRADED_MODE_POLICY,
+        (
+            f"PolicyBundle {binding.degraded_mode_policy_bundle_id} version "
+            f"{compatibility_tuple.degraded_mode_policy_version}"
+        ),
+    )
+    _require_lane_binding(
+        degraded_policy,
+        body.lane_id,
         (
             f"PolicyBundle {binding.degraded_mode_policy_bundle_id} version "
             f"{compatibility_tuple.degraded_mode_policy_version}"
@@ -315,10 +433,63 @@ def get_input_bundle(db: Session, input_bundle_id: str) -> InputBundle:
     return _get_or_404(db, InputBundle, "input_bundle_id", _clean_identifier(input_bundle_id, "input_bundle_id"))
 
 
+def create_manual_lane_evaluation(db: Session, body: ManualLaneEvaluationCreate) -> LaneEvaluation:
+    supersedes_evaluation_id = _clean_optional_text(body.supersedes_evaluation_id)
+    if supersedes_evaluation_id is not None:
+        prior_evaluation = get_lane_evaluation(db, supersedes_evaluation_id)
+        if prior_evaluation.execution_mode != "governed_manual_ingest":
+            raise GovernanceValidationError(
+                "manual lane evaluation ingestion may only supersede prior governed_manual_ingest records."
+            )
+
+    return create_lane_evaluation(
+        db,
+        LaneEvaluationCreate(
+            lane_evaluation_id=body.lane_evaluation_id,
+            supersedes_evaluation_id=body.supersedes_evaluation_id,
+            supersession_class=body.supersession_class,
+            supersession_reason=body.supersession_reason,
+            supersession_timestamp=body.supersession_timestamp,
+            lane_id=body.lane_id,
+            lane_spec_version=body.lane_spec_version,
+            lane_family=body.lane_family,
+            execution_mode="governed_manual_ingest",
+            result_status=body.result_status,
+            compatibility_resolution_state=body.compatibility_resolution_state,
+            runtime_profile_id=body.runtime_profile_id,
+            runtime_profile_version=body.runtime_profile_version,
+            input_bundle_id=body.input_bundle_id,
+            replay_state=body.replay_state,
+            stale_state=body.stale_state,
+            recomputation_action=body.recomputation_action,
+            lifecycle_reason_code=body.lifecycle_reason_code,
+            lifecycle_reason_detail=body.lifecycle_reason_detail,
+            raw_output_hash=None,
+            scope_id=body.scope_id,
+            scope_version=body.scope_version,
+            compatibility_binding=body.compatibility_binding,
+            output_values=[],
+            factor_values=[],
+            trace_bundle=body.trace_bundle,
+            created_by=body.created_by,
+        ),
+    )
+
+
 def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvaluation:
     lane_evaluation_id = _clean_identifier(body.lane_evaluation_id, "lane_evaluation_id")
     _ensure_unique_id(db, LaneEvaluation, "lane_evaluation_id", lane_evaluation_id)
     _ensure_unique_id(db, TraceBundle, "trace_bundle_id", _clean_identifier(body.trace_bundle.trace_bundle_id, "trace_bundle_id"))
+    execution_mode = _clean_identifier(body.execution_mode, "execution_mode")
+    if execution_mode == "governed_manual_ingest":
+        if body.result_status in {ResultStatus.COMPUTED_STRICT, ResultStatus.COMPUTED_DEGRADED}:
+            raise GovernanceValidationError(
+                "governed_manual_ingest may not persist computed_strict or computed_degraded canonical truth."
+            )
+        if body.output_values or body.factor_values or body.raw_output_hash is not None:
+            raise GovernanceValidationError(
+                "governed_manual_ingest may not persist caller-supplied outputs, factors, or raw_output_hash."
+            )
 
     lane_spec = get_lane_spec(db, body.lane_id, body.lane_spec_version)
     _validate_lane_spec(lane_spec, body.lane_id, body.lane_family.value)
@@ -355,6 +526,9 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
     _validate_trace_tier(body, lane_spec.trace_tier)
     _validate_output_values(body)
     _validate_factor_values(body)
+    _validate_unique_output_fields(body)
+    _validate_unique_factor_names(body)
+    lifecycle_service.validate_evaluation_creation_lifecycle(body)
 
     previous_evaluation = None
     supersedes_evaluation_id = _clean_optional_text(body.supersedes_evaluation_id)
@@ -374,14 +548,32 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
             "trace_events": [event.model_dump(mode="json") for event in body.trace_bundle.trace_events],
         }
     )
+    serialized_output_values = _serialized_output_values(body.output_values)
+    serialized_factor_values = _serialized_factor_values(body.factor_values)
+    derived_raw_output_hash = _derive_raw_output_hash(
+        result_status=body.result_status.value,
+        serialized_output_values=serialized_output_values,
+        serialized_factor_values=serialized_factor_values,
+        trace_bundle_hash=trace_bundle_hash,
+    )
+    supplied_raw_output_hash = _clean_optional_text(body.raw_output_hash)
+    if supplied_raw_output_hash is not None and supplied_raw_output_hash != derived_raw_output_hash:
+        raise GovernanceValidationError(
+            "raw_output_hash must match the persisted canonical output artifact bundle."
+        )
     compatibility_tuple_hash = compatibility_binding_payload["compatibility_tuple_hash"]
+    runtime_admission = runtime_admission_service.derive_runtime_admission_result(
+        runtime_profile,
+        input_bundle=input_bundle,
+        compatibility_tuple_hash=compatibility_tuple_hash,
+    )
 
     evaluation = LaneEvaluation(
         lane_evaluation_id=lane_evaluation_id,
         lane_id=_clean_identifier(body.lane_id, "lane_id"),
         lane_spec_version=body.lane_spec_version,
         lane_family=body.lane_family.value,
-        execution_mode=_clean_identifier(body.execution_mode, "execution_mode"),
+        execution_mode=execution_mode,
         result_status=body.result_status.value,
         compatibility_resolution_state=body.compatibility_resolution_state.value,
         runtime_profile_id=_clean_identifier(body.runtime_profile_id, "runtime_profile_id"),
@@ -390,7 +582,18 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
         trace_bundle_id=_clean_identifier(body.trace_bundle.trace_bundle_id, "trace_bundle_id"),
         replay_state=body.replay_state.value,
         stale_state=body.stale_state.value,
-        raw_output_hash=_clean_optional_text(body.raw_output_hash),
+        recomputation_action=body.recomputation_action.value,
+        deterministic_admission_state=runtime_admission.deterministic_admission_state,
+        runtime_validation_reason_code=runtime_admission.runtime_validation_reason_code,
+        runtime_validation_reason_detail=runtime_admission.runtime_validation_reason_detail,
+        determinism_certificate_ref=runtime_admission.determinism_certificate_ref,
+        bit_exact_eligible=runtime_admission.bit_exact_eligible,
+        supersession_reason=None,
+        supersession_timestamp=None,
+        supersession_class=None,
+        lifecycle_reason_code=_clean_identifier(body.lifecycle_reason_code, "lifecycle_reason_code"),
+        lifecycle_reason_detail=_clean_optional_text(body.lifecycle_reason_detail),
+        raw_output_hash=derived_raw_output_hash,
         compatibility_tuple_hash=compatibility_tuple_hash,
         compatibility_binding_payload=compatibility_binding_payload,
         scope_id=evaluation_scope_id,
@@ -409,32 +612,32 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
     )
     db.add(trace_bundle)
 
-    for output in body.output_values:
+    for output in serialized_output_values:
         db.add(
             LaneOutputValue(
                 lane_evaluation_id=lane_evaluation_id,
-                output_field_name=_clean_identifier(output.output_field_name, "output_field_name"),
-                output_posture=output.output_posture.value,
-                numeric_value=output.numeric_value,
-                text_value=_clean_optional_text(output.text_value),
-                enum_value=_clean_optional_text(output.enum_value),
-                value_range_class=_clean_optional_text(output.value_range_class),
-                is_primary_output=output.is_primary_output,
+                output_field_name=output["output_field_name"],
+                output_posture=output["output_posture"],
+                numeric_value=output["numeric_value"],
+                text_value=output["text_value"],
+                enum_value=output["enum_value"],
+                value_range_class=output["value_range_class"],
+                is_primary_output=output["is_primary_output"],
             )
         )
 
-    for factor in body.factor_values:
+    for factor in serialized_factor_values:
         db.add(
             LaneFactorValue(
                 lane_evaluation_id=lane_evaluation_id,
-                factor_name=_clean_identifier(factor.factor_name, "factor_name"),
-                raw_value=factor.raw_value,
-                normalized_value=factor.normalized_value,
-                weighted_value=factor.weighted_value,
-                omitted_flag=factor.omitted_flag,
-                omission_reason=_clean_optional_text(factor.omission_reason),
-                provenance_class=_clean_optional_text(factor.provenance_class),
-                volatility_class=_clean_optional_text(factor.volatility_class),
+                factor_name=factor["factor_name"],
+                raw_value=factor["raw_value"],
+                normalized_value=factor["normalized_value"],
+                weighted_value=factor["weighted_value"],
+                omitted_flag=factor["omitted_flag"],
+                omission_reason=factor["omission_reason"],
+                provenance_class=factor["provenance_class"],
+                volatility_class=factor["volatility_class"],
             )
         )
 
@@ -449,8 +652,23 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
             )
         )
 
+    lifecycle_service.record_evaluation_created_event(db, evaluation)
+    runtime_admission_service.record_runtime_admission_event(
+        db,
+        evaluation=evaluation,
+        created_by=body.created_by,
+    )
+
     if previous_evaluation is not None:
-        previous_evaluation.superseded_by_evaluation_id = lane_evaluation_id
+        lifecycle_service.record_supersession_from_new_evaluation(
+            db,
+            prior_evaluation=previous_evaluation,
+            successor_evaluation_id=lane_evaluation_id,
+            supersession_class=body.supersession_class,
+            supersession_reason=body.supersession_reason or "",
+            supersession_timestamp=body.supersession_timestamp,
+            created_by=body.created_by,
+        )
 
     db.commit()
     return get_lane_evaluation(db, lane_evaluation_id)

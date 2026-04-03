@@ -1,26 +1,32 @@
 # ForgeMath
 
 ForgeMath is the Forge ecosystem's canonical math and rule authority surface.
-This repo implements Phase 1 only: governed vocabulary freezing, immutable
-registry foundations, deterministic runtime profiles, scope declarations, and
-migration package persistence. It does not implement the math engine.
 
-## Phase 1 Scope
+Current implemented repo truth:
+- Phase 1 governance registries and immutable version sequencing
+- Phase 2 canonical evaluation persistence
+- Phase 3 lifecycle governance for replay, stale posture, recomputation, and supersession lineage
+- Phase 4 deterministic runtime admission persistence and validation
+- Phase 5 projection DTO and read-model inspection surfaces
+- Phase 6 bounded canonical execution for `verification_burden`, `recurrence_pressure`, and `exposure_factor`
+- authority-boundary and canonical numeric hardening for manual ingest, derived output hashes, and active execution lineage control
 
-- Freeze governed status vocabularies and the compatibility tuple contract.
-- Persist versioned lane specs, variable registries, parameter sets,
-  threshold sets, policy bundles, runtime profiles, scopes, and migration
-  packages.
-- Enforce append-only lineage for canonical governance objects.
-- Fail closed when required Phase 1 bindings are missing or invalid.
-- Keep API request models and read models separate from canonical tables.
+Current hardening posture:
+- `POST /lane-evaluations` is limited to governed manual ingest for non-computed historical records
+- canonical computed truth is expected to enter through `POST /lane-executions`
+- canonical numeric artifacts persist as deterministic decimal strings, not floats
+- `raw_output_hash` is derived from the persisted canonical output/factor/trace artifact bundle
+- duplicate active canonical execution truth for the same execution context fails closed unless explicit supersession is declared
 
-## Non-Goals
+Current non-goals:
+- full lane math engine beyond the bounded Phase 6 lane wave
+- replay workers, stale-state automation, or queue processors
+- hybrid-gate execution rollout
+- projection persistence or downstream UI surfaces
 
-- Lane execution or formula evaluation
-- Projection/read-model persistence for canonical results
-- Replay workers, state machines, or operator orchestration
-- Formula semantics beyond the contract payloads supplied to registries
+Current documentation authority:
+- [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md) is the assembled repo-truth reference
+- `docs/*.md` files are retained as historical planning artifacts unless explicitly updated to current state
 
 ## Quick Start
 
@@ -33,4 +39,3 @@ alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8011
 pytest
 ```
-

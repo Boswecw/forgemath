@@ -1,6 +1,6 @@
 ## 8. API Layer
 
-All implemented routes live under `/api/v1/forgemath/governance`.
+Implemented routes live under `/api/v1/forgemath/governance` and `/api/v1/forgemath`.
 
 ### 8.1 Health Route
 
@@ -21,3 +21,45 @@ All implemented routes live under `/api/v1/forgemath/governance`.
 | Scopes | `POST /scopes` | `GET /scopes` | `GET /scopes/{scope_id}/versions/{version}` |
 | Migration packages | `POST /migration-packages` | `GET /migration-packages` | `GET /migration-packages/{migration_id}/versions/{version}` |
 
+### 8.3 Evaluation Routes
+
+| Family | Create | List | Get |
+|-------|--------|------|-----|
+| Input bundles | `POST /input-bundles` | `GET /input-bundles` | `GET /input-bundles/{input_bundle_id}` |
+| Lane evaluations | `POST /lane-evaluations` | `GET /lane-evaluations` | `GET /lane-evaluations/{lane_evaluation_id}` |
+| Replay queue events | `POST /replay-queue-events` | `GET /replay-queue-events` | `GET /replay-queue-events/{replay_event_id}` |
+| Incident records | `POST /incidents` | `GET /incidents` | `GET /incidents/{incident_id}` |
+
+`POST /lane-evaluations` is now restricted to governed manual ingest for
+non-computed historical records. Canonical computed truth is expected to enter
+through `POST /lane-executions`.
+
+### 8.4 Execution Routes
+
+| Family | Action | Path |
+|-------|--------|------|
+| Bounded canonical execution | `POST` | `/lane-executions` |
+
+### 8.5 Lifecycle Routes
+
+| Family | Action | Path |
+|-------|--------|------|
+| Lifecycle inspection | `GET` | `/lane-evaluations/{lane_evaluation_id}/lifecycle` |
+| Lifecycle transition | `POST` | `/lane-evaluations/{lane_evaluation_id}/lifecycle-transitions` |
+| Lineage inspection | `GET` | `/lane-evaluations/{lane_evaluation_id}/lineage` |
+
+### 8.6 Runtime Admission Routes
+
+| Family | Action | Path |
+|-------|--------|------|
+| Runtime admission inspection | `GET` | `/lane-evaluations/{lane_evaluation_id}/runtime-admission` |
+
+### 8.7 Projection Routes
+
+| Family | Action | Path |
+|-------|--------|------|
+| Evaluation summary projection | `GET` | `/lane-evaluations/{lane_evaluation_id}/summary` |
+| Evaluation detail projection | `GET` | `/lane-evaluations/{lane_evaluation_id}/detail` |
+| Factor inspection projection | `GET` | `/lane-evaluations/{lane_evaluation_id}/factors` |
+| Trace inspection projection | `GET` | `/lane-evaluations/{lane_evaluation_id}/trace` |
+| Replay diagnostic projection | `GET` | `/lane-evaluations/{lane_evaluation_id}/replay-diagnostics` |

@@ -7,13 +7,32 @@ from app.schemas.evaluation import (
     IncidentRecordRead,
     InputBundleCreate,
     InputBundleRead,
-    LaneEvaluationCreate,
     LaneEvaluationDetailRead,
+    LaneEvaluationLifecycleRead,
+    LaneEvaluationLifecycleTransitionCreate,
+    LaneEvaluationLineageRead,
+    LaneEvaluationRuntimeAdmissionRead,
     LaneEvaluationSummaryRead,
+    ManualLaneEvaluationCreate,
     ReplayQueueEventCreate,
     ReplayQueueEventRead,
 )
-from app.services import evaluation_service, registry_service
+from app.schemas.execution import LaneExecutionCreate, LaneExecutionResultRead
+from app.schemas.projection import (
+    LaneEvaluationDetailModel,
+    LaneEvaluationSummaryModel,
+    LaneFactorInspectionModel,
+    LaneReplayDiagnosticModel,
+    LaneTraceInspectionModel,
+)
+from app.services import (
+    execution_service,
+    evaluation_service,
+    lifecycle_service,
+    projection_service,
+    registry_service,
+    runtime_admission_service,
+)
 
 router = APIRouter(prefix="/api/v1/forgemath", tags=["forgemath-evaluations"])
 
@@ -55,12 +74,27 @@ def get_input_bundle(input_bundle_id: str, db: Session = Depends(get_db)) -> Inp
     status_code=status.HTTP_201_CREATED,
 )
 def create_lane_evaluation(
-    body: LaneEvaluationCreate,
+    body: ManualLaneEvaluationCreate,
     db: Session = Depends(get_db),
 ) -> LaneEvaluationDetailRead:
     try:
-        evaluation_service.create_lane_evaluation(db, body)
+        evaluation_service.create_manual_lane_evaluation(db, body)
         return evaluation_service.get_lane_evaluation_detail(db, body.lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.post(
+    "/lane-executions",
+    response_model=LaneExecutionResultRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_lane_execution(
+    body: LaneExecutionCreate,
+    db: Session = Depends(get_db),
+) -> LaneExecutionResultRead:
+    try:
+        return execution_service.execute_lane(db, body)
     except registry_service.GovernanceError as exc:
         _raise_http_error(exc)
 
@@ -77,6 +111,133 @@ def get_lane_evaluation(
 ) -> LaneEvaluationDetailRead:
     try:
         return evaluation_service.get_lane_evaluation_detail(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/summary",
+    response_model=LaneEvaluationSummaryModel,
+)
+def get_lane_evaluation_summary_projection(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneEvaluationSummaryModel:
+    try:
+        return projection_service.get_lane_evaluation_summary_model(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/detail",
+    response_model=LaneEvaluationDetailModel,
+)
+def get_lane_evaluation_detail_projection(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneEvaluationDetailModel:
+    try:
+        return projection_service.get_lane_evaluation_detail_model(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/factors",
+    response_model=LaneFactorInspectionModel,
+)
+def get_lane_factor_projection(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneFactorInspectionModel:
+    try:
+        return projection_service.get_lane_factor_inspection_model(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/trace",
+    response_model=LaneTraceInspectionModel,
+)
+def get_lane_trace_projection(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneTraceInspectionModel:
+    try:
+        return projection_service.get_lane_trace_inspection_model(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/replay-diagnostics",
+    response_model=LaneReplayDiagnosticModel,
+)
+def get_lane_replay_diagnostic_projection(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneReplayDiagnosticModel:
+    try:
+        return projection_service.get_lane_replay_diagnostic_model(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/lifecycle",
+    response_model=LaneEvaluationLifecycleRead,
+)
+def get_lane_evaluation_lifecycle(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneEvaluationLifecycleRead:
+    try:
+        return lifecycle_service.get_lane_evaluation_lifecycle(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.post(
+    "/lane-evaluations/{lane_evaluation_id}/lifecycle-transitions",
+    response_model=LaneEvaluationLifecycleRead,
+)
+def transition_lane_evaluation_lifecycle(
+    lane_evaluation_id: str,
+    body: LaneEvaluationLifecycleTransitionCreate,
+    db: Session = Depends(get_db),
+) -> LaneEvaluationLifecycleRead:
+    try:
+        return lifecycle_service.apply_lifecycle_transition(db, lane_evaluation_id, body)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/lineage",
+    response_model=LaneEvaluationLineageRead,
+)
+def get_lane_evaluation_lineage(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneEvaluationLineageRead:
+    try:
+        return lifecycle_service.get_lane_evaluation_lineage(db, lane_evaluation_id)
+    except registry_service.GovernanceError as exc:
+        _raise_http_error(exc)
+
+
+@router.get(
+    "/lane-evaluations/{lane_evaluation_id}/runtime-admission",
+    response_model=LaneEvaluationRuntimeAdmissionRead,
+)
+def get_lane_evaluation_runtime_admission(
+    lane_evaluation_id: str,
+    db: Session = Depends(get_db),
+) -> LaneEvaluationRuntimeAdmissionRead:
+    try:
+        return runtime_admission_service.get_runtime_admission(db, lane_evaluation_id)
     except registry_service.GovernanceError as exc:
         _raise_http_error(exc)
 

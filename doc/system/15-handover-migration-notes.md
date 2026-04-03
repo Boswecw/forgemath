@@ -13,9 +13,11 @@ The repo is grounded by these documents:
 
 ### 15.2 Deferred Work
 
-- evaluation tables
-- compatibility resolution engine
-- replay and stale state machines
-- execution engine
-- downstream projection surfaces
-
+- compatibility resolution engine beyond bounded validation and persisted binding checks
+- runtime admission evolution beyond bounded deterministic validation and persisted evidence
+- replay workers and queue processors
+- stale-state automation engine
+- execution expansion beyond the bounded Phase 6 lane wave
+- hybrid gate execution and broader multi-lane orchestration
+- persisted projection records or downstream projection distribution surfaces
+- stronger database-level current-truth constraints if future execution expansion needs protection beyond the current service-level guardrails
