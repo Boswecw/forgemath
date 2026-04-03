@@ -1,0 +1,12 @@
+# ForgeMath Phase 1 foundation dependencies
+
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+sqlalchemy==2.0.36
+alembic==1.13.1
+psycopg2-binary==2.9.10
+python-dotenv==1.0.0
+pydantic>=2.10.0
+pytest==7.4.3
+httpx==0.26.0
+
