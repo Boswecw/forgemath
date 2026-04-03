@@ -17,7 +17,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title=SERVICE_NAME,
     version=SERVICE_VERSION,
-    description="ForgeMath Phase 1 through Phase 6 canonical governance foundation",
+    description="ForgeMath Phase 1 through Phase 7 canonical governance, execution, and durability hardening foundation",
     lifespan=lifespan,
 )
 
@@ -30,5 +30,5 @@ def health() -> dict[str, str]:
     return {
         "status": "ok",
         "service": SERVICE_NAME,
-        "phase": "phase_6_execution_substrate",
+        "phase": "phase_7_durability_hardening",
     }

@@ -1,12 +1,13 @@
 ## 11. Database Schema
 
-The repo currently ships five schema migrations:
+The repo currently ships six schema migrations:
 
 - `20260402_0001_phase1_foundation`
 - `20260402_0002_phase2_evaluation_foundation`
 - `20260402_0003_phase3_lifecycle_governance`
 - `20260402_0004_phase4_runtime_admission`
 - `20260402_0005_authority_boundary_and_numeric_hardening`
+- `20260403_0006_phase7_durability_and_control_hardening`
 
 Phase 5 adds no new persistence tables.
 Projection DTOs are composed from existing canonical evaluation, lifecycle,
@@ -26,9 +27,9 @@ output, factor, and trace tables.
 | `forgemath_policy_bundles` | Policy bundle versions | `policy_bundle_id`, `version`, `policy_kind`, `payload_hash` | controlled policy-kind vocabulary |
 | `forgemath_runtime_profiles` | Deterministic runtime bindings | `runtime_profile_id`, `version`, rounding and serialization fields | canonical writes reject non-deterministic profiles |
 | `forgemath_scope_registry` | Scope declarations | `scope_id`, `version`, `scope_class`, `display_name` | local/cloud/hybrid vocabulary |
-| `forgemath_migration_packages` | Migration metadata | `migration_id`, `version`, source/target versions, approval state | controlled migration and approval vocabulary |
+| `forgemath_migration_packages` | Migration metadata | `migration_id`, `version`, source/target versions, approval state, determinism-sensitive artifacts | controlled migration, approval, and determinism-sensitive artifact vocabulary |
 | `forgemath_input_bundles` | Frozen admissible input bundles | `input_bundle_id`, `deterministic_input_hash`, `scope_id` | canonical evaluations require frozen bundle linkage |
-| `forgemath_lane_evaluations` | Root canonical evaluation truth | `lane_evaluation_id`, `lane_id`, `compatibility_tuple_hash`, lifecycle columns | append-only evaluation truth with governed lifecycle fields |
+| `forgemath_lane_evaluations` | Root canonical evaluation truth | `lane_evaluation_id`, `lane_id`, `compatibility_tuple_hash`, lifecycle columns, `active_canonical_execution_key` | append-only evaluation truth with governed lifecycle fields and unique live canonical execution context |
 | `forgemath_lane_output_values` | Output payload layers | `lane_evaluation_id`, `output_field_name`, `output_posture`, `numeric_value` | unique per evaluation/output field, numeric artifacts stored as decimal text |
 | `forgemath_lane_factor_values` | Factor contribution layers | `lane_evaluation_id`, `factor_name` | unique per evaluation/factor name, numeric artifacts stored as decimal text |
 | `forgemath_trace_bundles` | Trace bundle metadata | `trace_bundle_id`, `lane_evaluation_id`, `trace_tier` | canonical trace posture linked to each evaluation |
@@ -52,6 +53,10 @@ Every governed table includes:
 - `created_at`
 - `created_by`
 
+Migration package rows additionally expose:
+
+- `determinism_sensitive_artifacts`
+
 Evaluation lifecycle rows additionally expose:
 
 - `replay_state`
@@ -63,6 +68,7 @@ Evaluation lifecycle rows additionally expose:
 - `supersession_class`
 - `lifecycle_reason_code`
 - `lifecycle_reason_detail`
+- `active_canonical_execution_key`
 
 Evaluation runtime admission truth additionally exposes:
 
@@ -77,3 +83,9 @@ Phase `20260402_0005` further hardens the evaluation payload tables by:
 - converting output and factor numeric columns from `FLOAT` to deterministic text storage
 - enforcing unique `output_field_name` values per evaluation
 - enforcing unique `factor_name` values per evaluation
+
+Phase `20260403_0006` further hardens durability and control posture by:
+
+- enforcing unique `active_canonical_execution_key` values across live canonical execution contexts
+- backfilling active canonical execution keys for existing governed computed lineage roots
+- adding `determinism_sensitive_artifacts` to migration package metadata

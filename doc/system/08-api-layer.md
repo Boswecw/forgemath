@@ -54,6 +54,10 @@ through `POST /lane-executions`.
 |-------|--------|------|
 | Runtime admission inspection | `GET` | `/lane-evaluations/{lane_evaluation_id}/runtime-admission` |
 
+Runtime-admission inspection returns both persisted admission truth and derived
+runtime-recovery posture when the bound runtime profile is missing, incomplete,
+non-deterministic, or retired.
+
 ### 8.7 Projection Routes
 
 | Family | Action | Path |

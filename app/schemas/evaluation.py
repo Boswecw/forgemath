@@ -20,6 +20,8 @@ from app.enums import (
     RecomputationAction,
     ReplayState,
     ResultStatus,
+    RuntimeRecoveryAction,
+    RuntimeRecoveryPosture,
     StaleState,
     SupersessionClass,
     TraceTier,
@@ -442,6 +444,11 @@ class LaneEvaluationRuntimeAdmissionRead(EvaluationReadModel):
     current_runtime_profile_present: bool
     current_runtime_profile_active: bool
     current_runtime_profile_non_deterministic: bool | None
+    runtime_recovery_posture: RuntimeRecoveryPosture
+    runtime_recovery_action: RuntimeRecoveryAction
+    runtime_recovery_reason_code: str
+    runtime_recovery_reason_detail: str | None
+    operator_review_required_flag: bool
     runtime_admission_events: list[RuntimeAdmissionEventRead] = Field(default_factory=list)
 
 

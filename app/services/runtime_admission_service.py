@@ -8,7 +8,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.enums import DeterministicAdmissionState
+from app.enums import (
+    DeterministicAdmissionState,
+    ReplayState,
+    ResultStatus,
+    RuntimeRecoveryAction,
+    RuntimeRecoveryPosture,
+)
 from app.models.evaluation import InputBundle, LaneEvaluation, RuntimeAdmissionEvent
 from app.models.governance import RuntimeProfile
 from app.schemas.evaluation import LaneEvaluationRuntimeAdmissionRead, RuntimeAdmissionEventRead
@@ -54,6 +60,15 @@ class RuntimeAdmissionResult:
     runtime_validation_reason_detail: str | None
     determinism_certificate_ref: str
     bit_exact_eligible: bool
+
+
+@dataclass(frozen=True)
+class RuntimeRecoveryResult:
+    runtime_recovery_posture: str
+    runtime_recovery_action: str
+    runtime_recovery_reason_code: str
+    runtime_recovery_reason_detail: str | None
+    operator_review_required_flag: bool
 
 
 def _missing_runtime_fields(runtime_profile: RuntimeProfile) -> list[str]:
@@ -164,6 +179,85 @@ def record_runtime_admission_event(
     )
 
 
+def derive_runtime_recovery_result(
+    evaluation: LaneEvaluation,
+    runtime_profile: RuntimeProfile | None,
+) -> RuntimeRecoveryResult:
+    if runtime_profile is None:
+        return RuntimeRecoveryResult(
+            runtime_recovery_posture=RuntimeRecoveryPosture.REQUIRES_PROFILE_REBINDING.value,
+            runtime_recovery_action=RuntimeRecoveryAction.REQUIRES_PROFILE_REBINDING.value,
+            runtime_recovery_reason_code="runtime_profile_binding_missing",
+            runtime_recovery_reason_detail=(
+                "The bound runtime profile record is missing; canonical replay and future execution require profile rebinding."
+            ),
+            operator_review_required_flag=True,
+        )
+
+    missing_fields = _missing_runtime_fields(runtime_profile)
+    if missing_fields:
+        return RuntimeRecoveryResult(
+            runtime_recovery_posture=RuntimeRecoveryPosture.REQUIRES_PROFILE_REBINDING.value,
+            runtime_recovery_action=RuntimeRecoveryAction.REQUIRES_PROFILE_REBINDING.value,
+            runtime_recovery_reason_code="runtime_profile_incomplete_for_canonical_use",
+            runtime_recovery_reason_detail=(
+                "The bound runtime profile is incomplete for canonical use. Missing fields: "
+                + ", ".join(sorted(missing_fields))
+                + "."
+            ),
+            operator_review_required_flag=True,
+        )
+
+    if runtime_profile.non_determinism_allowed_flag:
+        return RuntimeRecoveryResult(
+            runtime_recovery_posture=RuntimeRecoveryPosture.REQUIRES_PROFILE_REBINDING.value,
+            runtime_recovery_action=RuntimeRecoveryAction.REQUIRES_PROFILE_REBINDING.value,
+            runtime_recovery_reason_code="runtime_profile_non_deterministic_for_canonical_use",
+            runtime_recovery_reason_detail=(
+                "The bound runtime profile now permits non-determinism and is no longer admissible for canonical use."
+            ),
+            operator_review_required_flag=True,
+        )
+
+    if runtime_profile.superseded_at is not None:
+        if evaluation.result_status in {
+            ResultStatus.AUDIT_ONLY.value,
+            ResultStatus.INVALID.value,
+        } or evaluation.replay_state in {
+            ReplayState.AUDIT_READABLE_ONLY.value,
+            ReplayState.NOT_REPLAYABLE.value,
+        }:
+            return RuntimeRecoveryResult(
+                runtime_recovery_posture=RuntimeRecoveryPosture.AUDIT_ONLY_DUE_TO_RUNTIME_PROFILE_RETIREMENT.value,
+                runtime_recovery_action=RuntimeRecoveryAction.PRESERVE_AS_AUDIT_ONLY.value,
+                runtime_recovery_reason_code="runtime_profile_retired_audit_only_posture",
+                runtime_recovery_reason_detail=(
+                    "The bound runtime profile is retired and the evaluation should remain audit-visible until a new canonical runtime binding is chosen."
+                ),
+                operator_review_required_flag=True,
+            )
+
+        return RuntimeRecoveryResult(
+            runtime_recovery_posture=RuntimeRecoveryPosture.RETIRED_FOR_CANONICAL_EXECUTION.value,
+            runtime_recovery_action=RuntimeRecoveryAction.REQUIRES_RECOMPUTE_UNDER_NEW_RUNTIME_PROFILE.value,
+            runtime_recovery_reason_code="runtime_profile_retired_requires_recompute",
+            runtime_recovery_reason_detail=(
+                "The bound runtime profile has been retired or superseded for canonical execution; recompute under a new canonical runtime profile is required."
+            ),
+            operator_review_required_flag=True,
+        )
+
+    return RuntimeRecoveryResult(
+        runtime_recovery_posture=RuntimeRecoveryPosture.CANONICAL_RUNTIME_HEALTHY.value,
+        runtime_recovery_action=RuntimeRecoveryAction.NO_RECOVERY_NEEDED.value,
+        runtime_recovery_reason_code="runtime_profile_remains_canonical_safe",
+        runtime_recovery_reason_detail=(
+            "The bound runtime profile remains present, deterministic, and active for canonical use."
+        ),
+        operator_review_required_flag=False,
+    )
+
+
 def get_runtime_admission(db: Session, lane_evaluation_id: str) -> LaneEvaluationRuntimeAdmissionRead:
     normalized_id = _clean_identifier(lane_evaluation_id, "lane_evaluation_id")
     evaluation = db.scalar(
@@ -187,6 +281,7 @@ def get_runtime_admission(db: Session, lane_evaluation_id: str) -> LaneEvaluatio
             RuntimeProfile.version == evaluation.runtime_profile_version,
         )
     )
+    runtime_recovery = derive_runtime_recovery_result(evaluation, runtime_profile)
 
     return LaneEvaluationRuntimeAdmissionRead(
         lane_evaluation_id=evaluation.lane_evaluation_id,
@@ -204,6 +299,11 @@ def get_runtime_admission(db: Session, lane_evaluation_id: str) -> LaneEvaluatio
         current_runtime_profile_non_deterministic=(
             None if runtime_profile is None else runtime_profile.non_determinism_allowed_flag
         ),
+        runtime_recovery_posture=runtime_recovery.runtime_recovery_posture,
+        runtime_recovery_action=runtime_recovery.runtime_recovery_action,
+        runtime_recovery_reason_code=runtime_recovery.runtime_recovery_reason_code,
+        runtime_recovery_reason_detail=runtime_recovery.runtime_recovery_reason_detail,
+        operator_review_required_flag=runtime_recovery.operator_review_required_flag,
         runtime_admission_events=[
             RuntimeAdmissionEventRead.model_validate(item) for item in runtime_events
         ],

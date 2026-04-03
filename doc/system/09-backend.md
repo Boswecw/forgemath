@@ -4,10 +4,10 @@
 
 | File | Responsibility |
 |------|----------------|
-| `app/services/registry_service.py` | create/list/get logic, version sequencing, supersession closure |
-| `app/services/evaluation_service.py` | canonical evaluation persistence, manual-ingest boundary enforcement, canonical artifact hashing, trace, replay queue, and incident persistence |
-| `app/services/lifecycle_service.py` | replay/stale/recomputation validation, supersession lifecycle control, lineage reads |
-| `app/services/runtime_admission_service.py` | deterministic runtime validation, runtime certificate derivation, runtime admission inspection |
+| `app/services/registry_service.py` | create/list/get logic, version sequencing, supersession closure, and determinism-sensitive migration package persistence |
+| `app/services/evaluation_service.py` | canonical evaluation persistence, manual-ingest boundary enforcement, canonical artifact hashing, persistence-level active execution exclusivity, trace, replay queue, and incident persistence |
+| `app/services/lifecycle_service.py` | replay/stale/recomputation validation, supersession lifecycle control, lineage reads, and cycle/temporal-order hardening |
+| `app/services/runtime_admission_service.py` | deterministic runtime validation, runtime certificate derivation, runtime admission inspection, and runtime-recovery posture derivation |
 | `app/services/execution_service.py` | bounded canonical execution for supported Phase 6 lanes, supported-lane contract validation, and active execution lineage control |
 | `app/services/projection_service.py` | governed projection/read-model composition over canonical truth |
 | `app/services/immutability.py` | session-level protection against payload mutation |
@@ -39,11 +39,16 @@
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables
 - bounded execution emits inspectable factor rows and tier_1_full trace events for supported lanes
 - bounded execution fails closed when an active canonical execution already exists for the same execution context unless explicit supersession is declared
+- persistence-level unique active canonical execution keys reject duplicate live current-truth inserts for the same governed execution context
+- governed canonical supersession may only target prior governed canonical execution lineage records
 - repeat execution over the same governed context preserves stable output, factor, trace, and raw-output hashing when lineage supersession is explicit
 - projection routes are read-only and derive metadata from canonical compatibility bindings
 - projection composition fails closed when source evaluation or source trace truth is missing
 - replay posture fails closed when required bindings are missing
 - stale posture may not be downgraded or silently reset to fresh
 - supersession preserves visibility and records append-only lifecycle events
+- lifecycle supersession transitions fail closed when temporal ordering is reversed or a lineage cycle would be created
 - only governed lifecycle fields may change after persisted evaluation creation
 - canonical runtime profiles reject non-deterministic admission
+- runtime-admission inspection derives operator-visible recovery posture and action when the bound runtime profile is degraded
+- determinism-sensitive migration packages must declare affected deterministic artifacts and bounded migration posture

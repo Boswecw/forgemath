@@ -229,6 +229,7 @@ class MigrationPackage(GovernedVersionedMixin, Base):
     source_versions: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     target_versions: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     affected_artifacts: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    determinism_sensitive_artifacts: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     migration_logic_summary: Mapped[str] = mapped_column(Text, nullable=False)
     compatibility_class_after_migration: Mapped[str] = mapped_column(String(48), nullable=False)
     rollback_plan: Mapped[str] = mapped_column(Text, nullable=False)

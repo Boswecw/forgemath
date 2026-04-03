@@ -450,6 +450,9 @@ def create_migration_package(db: Session, body: MigrationPackageCreate) -> Migra
         body.supersedes_version,
         retired_reason,
     )
+    determinism_sensitive_artifacts = [
+        item.value for item in body.determinism_sensitive_artifacts
+    ]
     record = MigrationPackage(
         id=new_uuid(),
         migration_id=migration_id,
@@ -458,6 +461,7 @@ def create_migration_package(db: Session, body: MigrationPackageCreate) -> Migra
         source_versions=body.source_versions,
         target_versions=body.target_versions,
         affected_artifacts=body.affected_artifacts,
+        determinism_sensitive_artifacts=determinism_sensitive_artifacts,
         migration_logic_summary=_clean_identifier(
             body.migration_logic_summary,
             "migration_logic_summary",
@@ -479,6 +483,7 @@ def create_migration_package(db: Session, body: MigrationPackageCreate) -> Migra
                 "source_versions": body.source_versions,
                 "target_versions": body.target_versions,
                 "affected_artifacts": body.affected_artifacts,
+                "determinism_sensitive_artifacts": determinism_sensitive_artifacts,
                 "migration_logic_summary": body.migration_logic_summary,
                 "compatibility_class_after_migration": body.compatibility_class_after_migration.value,
                 "rollback_plan": body.rollback_plan,
@@ -618,4 +623,3 @@ def get_migration_package(db: Session, migration_id: str, version: int) -> Migra
         _clean_identifier(migration_id, "migration_id"),
         version,
     )
-

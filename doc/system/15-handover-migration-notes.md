@@ -20,4 +20,4 @@ The repo is grounded by these documents:
 - execution expansion beyond the bounded Phase 6 lane wave
 - hybrid gate execution and broader multi-lane orchestration
 - persisted projection records or downstream projection distribution surfaces
-- stronger database-level current-truth constraints if future execution expansion needs protection beyond the current service-level guardrails
+- broader database-level exclusion or partitioning strategies if future execution expansion outgrows the current unique active execution key

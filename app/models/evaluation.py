@@ -89,6 +89,10 @@ class LaneEvaluation(ImmutablePersistedMixin, Base):
     lifecycle_reason_code: Mapped[str] = mapped_column(String(255), nullable=False)
     lifecycle_reason_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_output_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    active_canonical_execution_key: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
     compatibility_tuple_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     compatibility_binding_payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     scope_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
@@ -138,6 +142,10 @@ class LaneEvaluation(ImmutablePersistedMixin, Base):
             f"supersession_class IS NULL OR supersession_class IN {_sql_in(SupersessionClass)}",
             name="ck_forgemath_lane_evaluations_supersession_class",
         ),
+        UniqueConstraint(
+            "active_canonical_execution_key",
+            name="uq_forgemath_lane_evaluations_active_canonical_execution_key",
+        ),
     )
 
     @classmethod
@@ -152,6 +160,7 @@ class LaneEvaluation(ImmutablePersistedMixin, Base):
             "supersession_class",
             "lifecycle_reason_code",
             "lifecycle_reason_detail",
+            "active_canonical_execution_key",
         }
 
 

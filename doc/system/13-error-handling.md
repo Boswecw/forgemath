@@ -19,7 +19,9 @@ No route silently degrades a missing or incompatible binding into a success path
 
 - invalid replay-safe claims fail with `400`
 - invalid stale-state downgrades fail with `400`
+- temporally reversed supersession transitions fail with `400`
 - lineage conflicts or duplicate supersession links fail with `409`
+- lineage cycles fail with `409`
 - missing lifecycle inspection targets fail with `404`
 
 ### 13.4 Runtime Admission Failure Posture
@@ -28,6 +30,7 @@ No route silently degrades a missing or incompatible binding into a success path
 - incomplete runtime profiles fail canonical admission with `400`
 - retired runtime profiles fail canonical admission with `400`
 - missing evaluation targets for runtime inspection fail with `404`
+- runtime inspection exposes degraded recovery posture instead of silently reporting healthy canonical runtime bindings
 
 ### 13.5 Projection Failure Posture
 
@@ -42,7 +45,7 @@ No route silently degrades a missing or incompatible binding into a success path
 - missing governance bindings fail execution with `404`
 - runtime profiles outside the supported deterministic Phase 6 substrate fail execution with `400`
 - invalid supported-lane parameter semantics or threshold topology fail execution with `400`
-- duplicate active canonical execution context without explicit supersession fails with `400`
+- duplicate active canonical execution context without explicit supersession fails with `409`
 
 ### 13.7 Authority-Boundary Failure Posture
 
@@ -51,3 +54,5 @@ No route silently degrades a missing or incompatible binding into a success path
 - caller-supplied raw_output_hash values that do not match the persisted artifact bundle fail with `400`
 - incomplete optional prior/decay compatibility bindings fail request validation with `422`
 - cross-lane parameter, threshold, or policy bindings fail with `400`
+- determinism-sensitive migration packages with missing affected deterministic artifacts fail request validation with `422`
+- determinism-sensitive migration packages may not claim `hard_compatible` post-migration posture

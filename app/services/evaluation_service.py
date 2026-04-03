@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.enums import (
@@ -157,6 +158,49 @@ def _derive_raw_output_hash(
             "trace_bundle_hash": trace_bundle_hash,
         }
     )
+
+
+def _active_canonical_execution_key(
+    *,
+    execution_mode: str,
+    result_status: str,
+    lane_id: str,
+    lane_spec_version: int,
+    runtime_profile_id: str,
+    runtime_profile_version: int,
+    input_bundle_id: str,
+    compatibility_tuple_hash: str,
+    scope_id: str | None,
+    scope_version: int | None,
+) -> str | None:
+    if execution_mode != "governed_canonical_execution":
+        return None
+    if result_status not in {
+        ResultStatus.COMPUTED_STRICT.value,
+        ResultStatus.COMPUTED_DEGRADED.value,
+    }:
+        return None
+    return _hash_payload(
+        {
+            "lane_id": lane_id,
+            "lane_spec_version": lane_spec_version,
+            "runtime_profile_id": runtime_profile_id,
+            "runtime_profile_version": runtime_profile_version,
+            "input_bundle_id": input_bundle_id,
+            "compatibility_tuple_hash": compatibility_tuple_hash,
+            "scope_id": scope_id,
+            "scope_version": scope_version,
+        }
+    )
+
+
+def _raise_known_integrity_error(exc: IntegrityError) -> None:
+    detail = str(exc.orig).lower() if exc.orig is not None else str(exc).lower()
+    if "active_canonical_execution_key" in detail:
+        raise GovernanceConflictError(
+            "active canonical execution exclusivity blocks duplicate current-truth inserts for this execution context."
+        ) from exc
+    raise exc
 
 
 TRACE_TIER_RANK = {
@@ -566,6 +610,13 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
             raise GovernanceValidationError("superseded lane evaluation must belong to the same lane_id.")
         if previous_evaluation.superseded_by_evaluation_id is not None:
             raise GovernanceValidationError("superseded lane evaluation is already closed by lineage.")
+        if (
+            execution_mode == "governed_canonical_execution"
+            and previous_evaluation.execution_mode != "governed_canonical_execution"
+        ):
+            raise GovernanceValidationError(
+                "governed_canonical_execution may only supersede prior governed_canonical_execution lineage records."
+            )
 
     trace_bundle_hash = _hash_payload(
         {
@@ -594,6 +645,18 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
         input_bundle=input_bundle,
         compatibility_tuple_hash=compatibility_tuple_hash,
     )
+    active_canonical_execution_key = _active_canonical_execution_key(
+        execution_mode=execution_mode,
+        result_status=body.result_status.value,
+        lane_id=body.lane_id,
+        lane_spec_version=body.lane_spec_version,
+        runtime_profile_id=body.runtime_profile_id,
+        runtime_profile_version=body.runtime_profile_version,
+        input_bundle_id=input_bundle.input_bundle_id,
+        compatibility_tuple_hash=compatibility_tuple_hash,
+        scope_id=evaluation_scope_id,
+        scope_version=evaluation_scope_version,
+    )
 
     evaluation = LaneEvaluation(
         lane_evaluation_id=lane_evaluation_id,
@@ -621,6 +684,7 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
         lifecycle_reason_code=_clean_identifier(body.lifecycle_reason_code, "lifecycle_reason_code"),
         lifecycle_reason_detail=_clean_optional_text(body.lifecycle_reason_detail),
         raw_output_hash=derived_raw_output_hash,
+        active_canonical_execution_key=active_canonical_execution_key,
         compatibility_tuple_hash=compatibility_tuple_hash,
         compatibility_binding_payload=compatibility_binding_payload,
         scope_id=evaluation_scope_id,
@@ -697,7 +761,11 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
             created_by=body.created_by,
         )
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        _raise_known_integrity_error(exc)
     return get_lane_evaluation(db, lane_evaluation_id)
 
 

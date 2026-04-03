@@ -459,6 +459,27 @@ def _validate_supersession_transition(
         raise GovernanceValidationError(
             "supersession lineage requires the related evaluation to share the same lane_id."
         )
+    current_successor_id = related_evaluation.superseded_by_evaluation_id
+    while current_successor_id is not None:
+        if current_successor_id == evaluation.lane_evaluation_id:
+            raise GovernanceConflictError("supersession transition would create a lineage cycle.")
+        current_successor = db.scalar(
+            select(LaneEvaluation).where(LaneEvaluation.lane_evaluation_id == current_successor_id)
+        )
+        if current_successor is None:
+            break
+        current_successor_id = current_successor.superseded_by_evaluation_id
+    if (
+        evaluation.execution_mode == "governed_canonical_execution"
+        and related_evaluation.execution_mode != "governed_canonical_execution"
+    ):
+        raise GovernanceValidationError(
+            "governed_canonical_execution lineage may only supersede into another governed_canonical_execution record."
+        )
+    if related_evaluation.created_at < evaluation.created_at:
+        raise GovernanceValidationError(
+            "supersession lineage requires the related evaluation to be created at or after the superseded evaluation."
+        )
 
     existing_link = evaluation.superseded_by_evaluation_id
     if existing_link is not None and existing_link != related_evaluation_id:
@@ -603,6 +624,7 @@ def record_supersession_from_new_evaluation(
         "supersession_reason",
     )
     prior_evaluation.supersession_timestamp = supersession_timestamp
+    prior_evaluation.active_canonical_execution_key = None
     prior_evaluation.stale_state = next_stale_state
     prior_evaluation.recomputation_action = RecomputationAction.PRESERVE_AS_AUDIT_ONLY.value
     prior_evaluation.lifecycle_reason_code = "superseded_by_evaluation"
@@ -774,6 +796,7 @@ def apply_lifecycle_transition(
                 "supersession_reason",
             )
             evaluation.supersession_timestamp = body.supersession_timestamp
+            evaluation.active_canonical_execution_key = None
         else:
             evaluation.superseded_by_evaluation_id = new_related_evaluation_id
 

@@ -46,8 +46,20 @@ def test_postgres_schema_uses_canonical_decimal_text_and_unique_artifact_fields(
         factor_unique_constraints = {
             constraint["name"] for constraint in inspector.get_unique_constraints("forgemath_lane_factor_values")
         }
+        evaluation_unique_constraints = {
+            constraint["name"] for constraint in inspector.get_unique_constraints("forgemath_lane_evaluations")
+        }
+
+        migration_columns = {
+            column["name"]: column for column in inspector.get_columns("forgemath_migration_packages")
+        }
 
         assert "uq_forgemath_lane_output_values_lane_evaluation_field" in output_unique_constraints
         assert "uq_forgemath_lane_factor_values_lane_evaluation_factor" in factor_unique_constraints
+        assert (
+            "uq_forgemath_lane_evaluations_active_canonical_execution_key"
+            in evaluation_unique_constraints
+        )
+        assert "determinism_sensitive_artifacts" in migration_columns
     finally:
         engine.dispose()

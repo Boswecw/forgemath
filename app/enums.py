@@ -92,6 +92,11 @@ class MigrationClass(StrEnum):
     SEMANTIC_SUPERSESSION = "semantic_supersession"
     AUDIT_ONLY_RECLASSIFICATION = "audit_only_reclassification"
     ROLLBACK_RECOVERY = "rollback_recovery"
+    NUMERIC_SERIALIZATION_MIGRATION = "numeric_serialization_migration"
+    ARTIFACT_HASHING_MIGRATION = "artifact_hashing_migration"
+    TRACE_HASHING_MIGRATION = "trace_hashing_migration"
+    COMPATIBILITY_INTERPRETATION_MIGRATION = "compatibility_interpretation_migration"
+    PROJECTION_COMPATIBILITY_MIGRATION = "projection_compatibility_migration"
 
 
 class MigrationCompatibilityClass(StrEnum):
@@ -106,6 +111,14 @@ class MigrationApprovalState(StrEnum):
     PENDING_REVIEW = "pending_review"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class DeterminismSensitiveArtifact(StrEnum):
+    NUMERIC_SERIALIZATION = "numeric_serialization"
+    ARTIFACT_HASHING = "artifact_hashing"
+    TRACE_HASHING = "trace_hashing"
+    COMPATIBILITY_INTERPRETATION = "compatibility_interpretation"
+    PROJECTION_COMPATIBILITY = "projection_compatibility"
 
 
 class PriorityClass(StrEnum):
@@ -129,6 +142,20 @@ class IncidentClass(StrEnum):
     REPLAY_QUEUE_SATURATION = "replay_queue_saturation"
     UNAUTHORIZED_OVERRIDE_ATTEMPT = "unauthorized_override_attempt"
     SEMANTIC_MIGRATION_MISCLASSIFICATION = "semantic_migration_misclassification"
+
+
+class RuntimeRecoveryPosture(StrEnum):
+    CANONICAL_RUNTIME_HEALTHY = "canonical_runtime_healthy"
+    RETIRED_FOR_CANONICAL_EXECUTION = "retired_for_canonical_execution"
+    AUDIT_ONLY_DUE_TO_RUNTIME_PROFILE_RETIREMENT = "audit_only_due_to_runtime_profile_retirement"
+    REQUIRES_PROFILE_REBINDING = "requires_profile_rebinding"
+
+
+class RuntimeRecoveryAction(StrEnum):
+    NO_RECOVERY_NEEDED = "no_recovery_needed"
+    REQUIRES_PROFILE_REBINDING = "requires_profile_rebinding"
+    REQUIRES_RECOMPUTE_UNDER_NEW_RUNTIME_PROFILE = "requires_recompute_under_new_runtime_profile"
+    PRESERVE_AS_AUDIT_ONLY = "preserve_as_audit_only"
 
 
 def enum_values(enum_cls: type[StrEnum]) -> tuple[str, ...]:

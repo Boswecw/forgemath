@@ -5,9 +5,10 @@ from hashlib import sha256
 import json
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.enums import (
+    DeterminismSensitiveArtifact,
     LaneFamily,
     MigrationApprovalState,
     MigrationClass,
@@ -190,6 +191,7 @@ class MigrationPackageCreate(VersionedCreateBase):
     source_versions: dict[str, Any] = Field(default_factory=dict)
     target_versions: dict[str, Any] = Field(default_factory=dict)
     affected_artifacts: list[str] = Field(default_factory=list)
+    determinism_sensitive_artifacts: list[DeterminismSensitiveArtifact] = Field(default_factory=list)
     migration_logic_summary: str = Field(min_length=1)
     compatibility_class_after_migration: MigrationCompatibilityClass
     rollback_plan: str = Field(min_length=1)
@@ -211,6 +213,42 @@ class MigrationPackageCreate(VersionedCreateBase):
             raise ValueError("affected_artifacts must not be empty.")
         return value
 
+    @field_validator("determinism_sensitive_artifacts")
+    @classmethod
+    def validate_determinism_sensitive_artifacts(
+        cls,
+        value: list[DeterminismSensitiveArtifact],
+    ) -> list[DeterminismSensitiveArtifact]:
+        if len(value) != len(set(value)):
+            raise ValueError("determinism_sensitive_artifacts must be unique.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_determinism_sensitive_posture(self) -> "MigrationPackageCreate":
+        determinism_sensitive_classes = {
+            MigrationClass.NUMERIC_SERIALIZATION_MIGRATION,
+            MigrationClass.ARTIFACT_HASHING_MIGRATION,
+            MigrationClass.TRACE_HASHING_MIGRATION,
+            MigrationClass.COMPATIBILITY_INTERPRETATION_MIGRATION,
+            MigrationClass.PROJECTION_COMPATIBILITY_MIGRATION,
+        }
+        is_sensitive_class = self.migration_class in determinism_sensitive_classes
+        has_sensitive_artifacts = bool(self.determinism_sensitive_artifacts)
+
+        if is_sensitive_class and not has_sensitive_artifacts:
+            raise ValueError(
+                "determinism-sensitive migration classes require determinism_sensitive_artifacts."
+            )
+        if not is_sensitive_class and has_sensitive_artifacts:
+            raise ValueError(
+                "determinism_sensitive_artifacts may only be declared for determinism-sensitive migration classes."
+            )
+        if has_sensitive_artifacts and self.compatibility_class_after_migration == MigrationCompatibilityClass.HARD_COMPATIBLE:
+            raise ValueError(
+                "determinism-sensitive migrations may not declare compatibility_class_after_migration=hard_compatible."
+            )
+        return self
+
 
 class MigrationPackageRead(VersionedReadBase):
     migration_id: str
@@ -218,6 +256,7 @@ class MigrationPackageRead(VersionedReadBase):
     source_versions: dict[str, Any]
     target_versions: dict[str, Any]
     affected_artifacts: list[str]
+    determinism_sensitive_artifacts: list[DeterminismSensitiveArtifact]
     migration_logic_summary: str
     compatibility_class_after_migration: MigrationCompatibilityClass
     rollback_plan: str
@@ -242,4 +281,3 @@ class CompatibilityTuple(BaseModel):
     def canonical_hash(self) -> str:
         payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
         return sha256(payload.encode("utf-8")).hexdigest()
-
