@@ -5,6 +5,7 @@ PARTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$PARTS_DIR/../.." && pwd)"
 ROOT_OUTPUT="$REPO_ROOT/SYSTEM.md"
 DOC_OUTPUT="$REPO_ROOT/doc/SYSTEM.md"
+LEGACY_OUTPUT_REL=""
 TMP_OUTPUT="$(mktemp)"
 
 echo "Assembling SYSTEM.md..."
@@ -20,7 +21,18 @@ done
 
 cp "$TMP_OUTPUT" "$ROOT_OUTPUT"
 cp "$TMP_OUTPUT" "$DOC_OUTPUT"
+
+if [[ -n "$LEGACY_OUTPUT_REL" ]]; then
+  LEGACY_OUTPUT="$REPO_ROOT/$LEGACY_OUTPUT_REL"
+  mkdir -p "$(dirname "$LEGACY_OUTPUT")"
+  cp "$TMP_OUTPUT" "$LEGACY_OUTPUT"
+fi
+
 chmod 664 "$ROOT_OUTPUT" "$DOC_OUTPUT"
+if [[ -n "$LEGACY_OUTPUT_REL" ]]; then
+  chmod 664 "$REPO_ROOT/$LEGACY_OUTPUT_REL"
+fi
+
 LINE_COUNT=$(wc -l < "$ROOT_OUTPUT")
 rm -f "$TMP_OUTPUT"
 echo "SYSTEM.md assembled: $LINE_COUNT lines"
