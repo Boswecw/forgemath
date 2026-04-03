@@ -14,8 +14,11 @@ Current implemented repo truth:
 Current hardening posture:
 - `POST /lane-evaluations` is limited to governed manual ingest for non-computed historical records
 - canonical computed truth is expected to enter through `POST /lane-executions`
+- canonical execution mode is server-owned and may not be caller-supplied on the execution route
 - canonical numeric artifacts persist as deterministic decimal strings, not floats
 - `raw_output_hash` is derived from the persisted canonical output/factor/trace artifact bundle
+- optional prior/decay compatibility bindings must resolve when present
+- supported parameter and threshold payloads fail closed when topology or semantic constraints are invalid
 - duplicate active canonical execution truth for the same execution context fails closed unless explicit supersession is declared
 
 Current non-goals:

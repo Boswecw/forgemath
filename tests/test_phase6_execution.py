@@ -206,7 +206,6 @@ def _execution_request(
         runtime_profile_id=bindings["runtime_profile"].runtime_profile_id,
         runtime_profile_version=bindings["runtime_profile"].version,
         input_bundle_id="bundle-001",
-        execution_mode="governed_canonical_execution",
         compatibility_binding=_compatibility_binding(
             bindings,
             variable_registry_id=variable_registry_id,
@@ -460,7 +459,6 @@ def test_lane_execution_rejects_unsupported_lane(db):
         runtime_profile_id="priority-runtime",
         runtime_profile_version=1,
         input_bundle_id="bundle-001",
-        execution_mode="governed_canonical_execution",
         compatibility_binding=CompatibilityBinding(
             variable_registry_id="priority-vars",
             parameter_set_id="priority-params",
@@ -656,6 +654,210 @@ def test_lane_execution_allows_explicit_supersession_of_active_current_truth(db)
     assert prior.superseded_by_evaluation_id == "exec-vb-002"
     assert prior.recomputation_action == "preserve_as_audit_only"
     assert prior.supersession_class == "parameter_supersession"
+
+
+def test_lane_execution_repeatability_preserves_hash_stability(db):
+    bindings = _seed_execution_bindings(
+        db,
+        lane_id="verification_burden",
+        variable_names=[
+            "implementation_minutes",
+            "verification_minutes",
+            "rework_minutes",
+            "interruption_count",
+            "downstream_fix_minutes",
+            "uncertainty_band",
+        ],
+        parameter_payload={
+            "weights": {
+                "w_I": 0.15,
+                "w_V": 0.25,
+                "w_R": 0.25,
+                "w_X": 0.10,
+                "w_D": 0.10,
+                "w_U": 0.15,
+            },
+            "caps": {
+                "I_cap": 60,
+                "V_cap": 80,
+                "R_cap": 40,
+                "X_cap": 4,
+                "D_cap": 60,
+            },
+        },
+        threshold_payload=_generic_bands(),
+    )
+    _create_input_bundle(
+        db,
+        bindings,
+        {
+            "implementation_minutes": 30,
+            "verification_minutes": 40,
+            "rework_minutes": 10,
+            "interruption_count": 2,
+            "downstream_fix_minutes": 15,
+            "uncertainty_band": "moderate",
+        },
+    )
+
+    first = create_lane_execution(_execution_request(bindings, lane_evaluation_id="exec-vb-repeat-001"), db)
+    second = create_lane_execution(
+        _execution_request(
+            bindings,
+            lane_evaluation_id="exec-vb-repeat-002",
+            supersedes_evaluation_id="exec-vb-repeat-001",
+        ),
+        db,
+    )
+
+    assert second.raw_output_hash == first.raw_output_hash
+    assert second.evaluation.trace_bundle.trace_bundle_hash == first.evaluation.trace_bundle.trace_bundle_hash
+    assert [
+        (
+            output.output_field_name,
+            output.output_posture,
+            output.numeric_value,
+            output.enum_value,
+            output.value_range_class,
+        )
+        for output in second.evaluation.output_values
+    ] == [
+        (
+            output.output_field_name,
+            output.output_posture,
+            output.numeric_value,
+            output.enum_value,
+            output.value_range_class,
+        )
+        for output in first.evaluation.output_values
+    ]
+    assert [
+        (
+            factor.factor_name,
+            factor.raw_value,
+            factor.normalized_value,
+            factor.weighted_value,
+        )
+        for factor in second.evaluation.factor_values
+    ] == [
+        (
+            factor.factor_name,
+            factor.raw_value,
+            factor.normalized_value,
+            factor.weighted_value,
+        )
+        for factor in first.evaluation.factor_values
+    ]
+
+
+def test_lane_execution_rejects_invalid_parameter_contract_semantics(db):
+    bindings = _seed_execution_bindings(
+        db,
+        lane_id="verification_burden",
+        variable_names=[
+            "implementation_minutes",
+            "verification_minutes",
+            "rework_minutes",
+            "interruption_count",
+            "downstream_fix_minutes",
+            "uncertainty_band",
+        ],
+        parameter_payload={
+            "weights": {
+                "w_I": 0.20,
+                "w_V": 0.25,
+                "w_R": 0.25,
+                "w_X": 0.10,
+                "w_D": 0.10,
+                "w_U": 0.20,
+            },
+            "caps": {
+                "I_cap": 60,
+                "V_cap": 80,
+                "R_cap": 40,
+                "X_cap": 4,
+                "D_cap": 60,
+            },
+        },
+        threshold_payload=_generic_bands(),
+    )
+    _create_input_bundle(
+        db,
+        bindings,
+        {
+            "implementation_minutes": 30,
+            "verification_minutes": 40,
+            "rework_minutes": 10,
+            "interruption_count": 2,
+            "downstream_fix_minutes": 15,
+            "uncertainty_band": "moderate",
+        },
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        create_lane_execution(_execution_request(bindings), db)
+
+    assert exc_info.value.status_code == 400
+    assert "does not satisfy the supported execution contract" in exc_info.value.detail
+
+
+def test_lane_execution_rejects_invalid_threshold_topology(db):
+    bindings = _seed_execution_bindings(
+        db,
+        lane_id="verification_burden",
+        variable_names=[
+            "implementation_minutes",
+            "verification_minutes",
+            "rework_minutes",
+            "interruption_count",
+            "downstream_fix_minutes",
+            "uncertainty_band",
+        ],
+        parameter_payload={
+            "weights": {
+                "w_I": 0.15,
+                "w_V": 0.25,
+                "w_R": 0.25,
+                "w_X": 0.10,
+                "w_D": 0.10,
+                "w_U": 0.15,
+            },
+            "caps": {
+                "I_cap": 60,
+                "V_cap": 80,
+                "R_cap": 40,
+                "X_cap": 4,
+                "D_cap": 60,
+            },
+        },
+        threshold_payload={
+            "bands": [
+                {"label": "low", "min_inclusive": 0.0, "max_exclusive": 0.25},
+                {"label": "moderate", "min_inclusive": 0.30, "max_exclusive": 0.50},
+                {"label": "high", "min_inclusive": 0.50, "max_exclusive": 0.75},
+                {"label": "critical", "min_inclusive": 0.75, "max_inclusive": 1.0},
+            ]
+        },
+    )
+    _create_input_bundle(
+        db,
+        bindings,
+        {
+            "implementation_minutes": 30,
+            "verification_minutes": 40,
+            "rework_minutes": 10,
+            "interruption_count": 2,
+            "downstream_fix_minutes": 15,
+            "uncertainty_band": "moderate",
+        },
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        create_lane_execution(_execution_request(bindings), db)
+
+    assert exc_info.value.status_code == 400
+    assert "does not satisfy the supported execution contract" in exc_info.value.detail
+
 
 def test_lane_execution_rejects_runtime_inadmissible_profile(db):
     bindings = _seed_execution_bindings(

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from app.api.evaluation_router import (
     create_incident_record,
@@ -168,7 +169,14 @@ def _create_input_bundle(db, bindings, *, input_bundle_id: str = "bundle-001"):
     )
 
 
-def _compatibility_binding(bindings):
+def _compatibility_binding(
+    bindings,
+    *,
+    prior_registry_id: str | None = None,
+    prior_registry_version: int | None = None,
+    decay_registry_id: str | None = None,
+    decay_registry_version: int | None = None,
+):
     lane_spec = bindings["lane_spec"]
     return CompatibilityBinding(
         variable_registry_id=bindings["variable_registry"].variable_registry_id,
@@ -176,11 +184,15 @@ def _compatibility_binding(bindings):
         threshold_set_id=bindings["threshold_set"].threshold_set_id,
         null_policy_bundle_id=bindings["null_policy"].policy_bundle_id,
         degraded_mode_policy_bundle_id=bindings["degraded_policy"].policy_bundle_id,
+        prior_registry_id=prior_registry_id,
+        decay_registry_id=decay_registry_id,
         compatibility_tuple=CompatibilityTuple(
             lane_spec_version=lane_spec.version,
             variable_registry_version=bindings["variable_registry"].version,
             parameter_set_version=bindings["parameter_set"].version,
             threshold_registry_version=bindings["threshold_set"].version,
+            prior_registry_version=prior_registry_version,
+            decay_registry_version=decay_registry_version,
             null_policy_version=bindings["null_policy"].version,
             degraded_mode_policy_version=bindings["degraded_policy"].version,
             trace_schema_version=1,
@@ -444,6 +456,76 @@ def test_evaluation_rejects_mismatched_raw_output_hash(db):
         )
 
     assert "raw_output_hash must match" in str(exc_info.value)
+
+
+def test_compatibility_binding_requires_optional_registry_pairing():
+    with pytest.raises(ValidationError) as exc_info:
+        CompatibilityBinding(
+            variable_registry_id="variables",
+            parameter_set_id="parameters",
+            threshold_set_id="thresholds",
+            null_policy_bundle_id="null-policy",
+            degraded_mode_policy_bundle_id="degraded-policy",
+            prior_registry_id="prior-variables",
+            compatibility_tuple=CompatibilityTuple(
+                lane_spec_version=1,
+                variable_registry_version=1,
+                parameter_set_version=1,
+                threshold_registry_version=1,
+                null_policy_version=1,
+                degraded_mode_policy_version=1,
+                trace_schema_version=1,
+                projection_schema_version=1,
+                submodule_build_version="forge-math-phase2",
+            ),
+        )
+
+    assert "prior_registry_id and prior_registry_version must be provided together" in str(exc_info.value)
+
+
+def test_lane_output_value_requires_single_value_shape():
+    with pytest.raises(ValidationError) as exc_info:
+        LaneOutputValueCreate(
+            output_field_name="vb_raw",
+            output_posture="raw",
+            numeric_value=0.42,
+            enum_value="moderate",
+            is_primary_output=True,
+        )
+
+    assert "exactly one of numeric_value, text_value, or enum_value" in str(exc_info.value)
+
+
+def test_lane_factor_value_requires_complete_non_omitted_payload():
+    with pytest.raises(ValidationError) as exc_info:
+        LaneFactorValueCreate(
+            factor_name="implementation_minutes",
+            raw_value=12.0,
+            provenance_class="bundle_inline_value",
+            volatility_class="stable",
+        )
+
+    assert "non-omitted factors require normalized_value, weighted_value" in str(exc_info.value)
+
+
+def test_evaluation_rejects_missing_optional_prior_registry_binding(db):
+    bindings = _seed_phase1_bindings(db)
+    _create_input_bundle(db, bindings)
+
+    body = _evaluation_create(bindings).model_copy(
+        update={
+            "compatibility_binding": _compatibility_binding(
+                bindings,
+                prior_registry_id="missing-prior-registry",
+                prior_registry_version=1,
+            )
+        }
+    )
+
+    with pytest.raises(registry_service.GovernanceNotFoundError) as exc_info:
+        evaluation_service.create_lane_evaluation(db, body)
+
+    assert "VariableRegistry missing-prior-registry version 1 was not found." in str(exc_info.value)
 
 
 def test_blocked_evaluation_and_lineage_visibility_are_preserved(db):

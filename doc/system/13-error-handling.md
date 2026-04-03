@@ -41,10 +41,13 @@ No route silently degrades a missing or incompatible binding into a success path
 - missing required input variables fail execution with `400`
 - missing governance bindings fail execution with `404`
 - runtime profiles outside the supported deterministic Phase 6 substrate fail execution with `400`
+- invalid supported-lane parameter semantics or threshold topology fail execution with `400`
 - duplicate active canonical execution context without explicit supersession fails with `400`
 
 ### 13.7 Authority-Boundary Failure Posture
 
 - manual ingest attempts to persist computed canonical truth fail request validation with `422`
+- caller-supplied `execution_mode` on the execution route fails request validation with `422`
 - caller-supplied raw_output_hash values that do not match the persisted artifact bundle fail with `400`
+- incomplete optional prior/decay compatibility bindings fail request validation with `422`
 - cross-lane parameter, threshold, or policy bindings fail with `400`

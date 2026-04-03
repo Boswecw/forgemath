@@ -20,6 +20,8 @@ class ExecutionReadModel(BaseModel):
 
 
 class LaneExecutionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     lane_evaluation_id: str | None = Field(default=None, min_length=1, max_length=36)
     supersedes_evaluation_id: str | None = Field(default=None, min_length=1, max_length=36)
     supersession_class: SupersessionClass | None = None
@@ -31,7 +33,6 @@ class LaneExecutionCreate(BaseModel):
     runtime_profile_id: str = Field(min_length=1, max_length=255)
     runtime_profile_version: int = Field(gt=0)
     input_bundle_id: str = Field(min_length=1, max_length=36)
-    execution_mode: str = Field(min_length=1, max_length=64)
     scope_id: str | None = Field(default=None, max_length=255)
     scope_version: int | None = Field(default=None, gt=0)
     compatibility_binding: CompatibilityBinding

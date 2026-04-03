@@ -334,3 +334,73 @@ def test_lane_execution_route_rejects_duplicate_active_current_truth_without_sup
         assert "active governed_canonical_execution evaluation already exists" in json.dumps(second_payload)
 
     _run_http_integration(seed, assertions)
+
+
+def test_lane_execution_route_rejects_caller_supplied_execution_mode():
+    def seed(session):
+        bindings = _seed_execution_bindings(
+            session,
+            lane_id="verification_burden",
+            variable_names=[
+                "implementation_minutes",
+                "verification_minutes",
+                "rework_minutes",
+                "interruption_count",
+                "downstream_fix_minutes",
+                "uncertainty_band",
+            ],
+            parameter_payload={
+                "weights": {
+                    "w_I": 0.15,
+                    "w_V": 0.25,
+                    "w_R": 0.25,
+                    "w_X": 0.10,
+                    "w_D": 0.10,
+                    "w_U": 0.15,
+                },
+                "caps": {
+                    "I_cap": 60,
+                    "V_cap": 80,
+                    "R_cap": 40,
+                    "X_cap": 4,
+                    "D_cap": 60,
+                },
+            },
+            threshold_payload={
+                "bands": [
+                    {"label": "low", "min_inclusive": 0.0, "max_exclusive": 0.25},
+                    {"label": "moderate", "min_inclusive": 0.25, "max_exclusive": 0.50},
+                    {"label": "high", "min_inclusive": 0.50, "max_exclusive": 0.75},
+                    {"label": "critical", "min_inclusive": 0.75, "max_inclusive": 1.0},
+                ]
+            },
+        )
+        _create_phase6_input_bundle(
+            session,
+            bindings,
+            {
+                "implementation_minutes": 30,
+                "verification_minutes": 40,
+                "rework_minutes": 10,
+                "interruption_count": 2,
+                "downstream_fix_minutes": 15,
+                "uncertainty_band": "moderate",
+            },
+        )
+        return bindings
+
+    def assertions(base_url: str, bindings):
+        request_body = _execution_request(bindings, lane_evaluation_id="http-exec-vb-extra-001").model_dump(
+            mode="json"
+        )
+        request_body["execution_mode"] = "manual_override_attempt"
+        status, payload = _request(
+            "POST",
+            f"{base_url}/api/v1/forgemath/lane-executions",
+            request_body,
+        )
+
+        assert status == 422
+        assert "extra_forbidden" in json.dumps(payload)
+
+    _run_http_integration(seed, assertions)

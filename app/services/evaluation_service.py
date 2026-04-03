@@ -370,6 +370,34 @@ def _validate_compatibility_binding(db: Session, body: LaneEvaluationCreate) -> 
         ),
     )
 
+    if binding.prior_registry_id is not None:
+        prior_registry = get_variable_registry(
+            db,
+            binding.prior_registry_id,
+            compatibility_tuple.prior_registry_version,
+        )
+        _require_active_binding(
+            prior_registry,
+            (
+                f"VariableRegistry {binding.prior_registry_id} version "
+                f"{compatibility_tuple.prior_registry_version}"
+            ),
+        )
+
+    if binding.decay_registry_id is not None:
+        decay_registry = get_variable_registry(
+            db,
+            binding.decay_registry_id,
+            compatibility_tuple.decay_registry_version,
+        )
+        _require_active_binding(
+            decay_registry,
+            (
+                f"VariableRegistry {binding.decay_registry_id} version "
+                f"{compatibility_tuple.decay_registry_version}"
+            ),
+        )
+
     payload = binding.model_dump(mode="json")
     payload["compatibility_tuple_hash"] = binding.canonical_hash()
     return payload
@@ -541,7 +569,6 @@ def create_lane_evaluation(db: Session, body: LaneEvaluationCreate) -> LaneEvalu
 
     trace_bundle_hash = _hash_payload(
         {
-            "trace_bundle_id": body.trace_bundle.trace_bundle_id,
             "trace_tier": body.trace_bundle.trace_tier.value,
             "trace_schema_version": body.trace_bundle.trace_schema_version,
             "reconstructable_flag": body.trace_bundle.reconstructable_flag,

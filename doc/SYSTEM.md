@@ -312,15 +312,21 @@ through `POST /lane-executions`.
 - canonical admission fails closed when runtime profile fields are incomplete
 - canonical admission fails closed when runtime profile is retired or non-deterministic
 - manual ingest may not persist computed canonical truth, caller-supplied output bundles, or caller-supplied output hashes
+- canonical execution mode is server-owned on the execution route and may not be caller-supplied
 - raw_output_hash is derived from the persisted canonical output/factor/trace artifact bundle
+- trace bundle hashing excludes storage ids so identical reruns preserve stable canonical artifact hashes
 - parameter, threshold, and policy bindings must match the evaluation lane when those records declare a lane binding
+- optional prior and decay compatibility bindings must resolve when present
 - canonical numeric output/factor values persist as deterministic decimal strings rather than floats
 - output field names and factor names are unique per evaluation
+- output and factor DTOs fail closed when computed rows are semantically incomplete
 - bounded execution supports only governed Phase 6 lanes and canonical_numeric lane family
 - bounded execution fails closed when variable, parameter, threshold, policy, runtime, or input bindings are missing or inactive
+- bounded execution fails closed when supported parameter payloads or threshold topologies violate the bounded execution contract
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables
 - bounded execution emits inspectable factor rows and tier_1_full trace events for supported lanes
 - bounded execution fails closed when an active canonical execution already exists for the same execution context unless explicit supersession is declared
+- repeat execution over the same governed context preserves stable output, factor, trace, and raw-output hashing when lineage supersession is explicit
 - projection routes are read-only and derive metadata from canonical compatibility bindings
 - projection composition fails closed when source evaluation or source trace truth is missing
 - replay posture fails closed when required bindings are missing
@@ -493,12 +499,15 @@ No route silently degrades a missing or incompatible binding into a success path
 - missing required input variables fail execution with `400`
 - missing governance bindings fail execution with `404`
 - runtime profiles outside the supported deterministic Phase 6 substrate fail execution with `400`
+- invalid supported-lane parameter semantics or threshold topology fail execution with `400`
 - duplicate active canonical execution context without explicit supersession fails with `400`
 
 ### 13.7 Authority-Boundary Failure Posture
 
 - manual ingest attempts to persist computed canonical truth fail request validation with `422`
+- caller-supplied `execution_mode` on the execution route fails request validation with `422`
 - caller-supplied raw_output_hash values that do not match the persisted artifact bundle fail with `400`
+- incomplete optional prior/decay compatibility bindings fail request validation with `422`
 - cross-lane parameter, threshold, or policy bindings fail with `400`
 
 ---
@@ -511,13 +520,13 @@ No route silently degrades a missing or incompatible binding into a success path
 |----------|----------|
 | `tests/test_phase1_api.py` | Route-function contract coverage and HTTP error translation |
 | `tests/test_phase1_invariants.py` | Immutability, supersession lineage, compatibility tuple hash stability |
-| `tests/test_phase2_api.py` | Canonical evaluation write/read coverage and fail-closed compatibility checks |
+| `tests/test_phase2_api.py` | Canonical evaluation write/read coverage, optional compatibility-binding validation, and fail-closed artifact-shape checks |
 | `tests/test_phase2_invariants.py` | Frozen input bundle immutability checks |
 | `tests/test_phase3_lifecycle.py` | Lifecycle inspection, stale/replay transitions, and lineage visibility |
 | `tests/test_phase4_runtime_admission.py` | Deterministic runtime admission persistence, inspection, and fail-closed invalid profile checks |
 | `tests/test_phase5_projections.py` | Projection metadata, truth-preserving summary/detail/factor/trace/replay reads, and fail-closed missing-source checks |
-| `tests/test_phase6_execution.py` | Supported lane execution happy paths and fail-closed missing-binding, missing-input, unsupported-lane, and runtime-profile execution checks |
-| `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary and execution route behavior when the environment allows localhost binding |
+| `tests/test_phase6_execution.py` | Supported lane execution happy paths, repeatability/hash-stability checks, and fail-closed missing-binding, missing-input, unsupported-lane, invalid-parameter, invalid-threshold, and runtime-profile execution checks |
+| `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
 | `tests/test_postgres_invariants.py` | Postgres-backed migration/schema invariant checks when `FORGEMATH_POSTGRES_TEST_URL` is supplied |
 
 ### 14.2 Execution
@@ -535,8 +544,11 @@ It also validates the hardening slice for:
 - manual-ingest boundary restriction
 - derived raw-output hashing
 - lane-affinity binding checks
+- optional prior/decay compatibility binding enforcement
+- computed output/factor payload shape enforcement
 - deterministic decimal-string artifact persistence
 - active canonical execution conflict handling
+- repeatability and hash stability across explicit superseding reruns
 
 HTTP route checks and Postgres-backed invariant checks are present but may skip in
 restricted environments that block localhost binding or do not provide a Postgres URL.

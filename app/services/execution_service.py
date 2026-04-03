@@ -65,6 +65,7 @@ PHASE6_RUNTIME_REQUIREMENTS = {
 DECIMAL_CONTEXT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 ZERO = Decimal("0")
 ONE = Decimal("1")
+CANONICAL_EXECUTION_MODE = "governed_canonical_execution"
 
 UNCERTAINTY_BAND_MAP = {
     "low": Decimal("0.10"),
@@ -683,7 +684,7 @@ def _active_canonical_execution_conflict(
             LaneEvaluation.runtime_profile_version == runtime_profile_version,
             LaneEvaluation.input_bundle_id == input_bundle_id,
             LaneEvaluation.compatibility_tuple_hash == compatibility_tuple_hash,
-            LaneEvaluation.execution_mode == "governed_canonical_execution",
+            LaneEvaluation.execution_mode == CANONICAL_EXECUTION_MODE,
             LaneEvaluation.superseded_by_evaluation_id.is_(None),
             LaneEvaluation.scope_id.is_(scope_id) if scope_id is None else LaneEvaluation.scope_id == scope_id,
             LaneEvaluation.scope_version.is_(scope_version)
@@ -831,6 +832,10 @@ def execute_lane(db: Session, body: LaneExecutionCreate) -> LaneExecutionResultR
         prior_evaluation = evaluation_service.get_lane_evaluation(db, supersedes_evaluation_id)
         if prior_evaluation.lane_id != lane_id:
             raise GovernanceValidationError("execution supersession target must belong to the same lane_id.")
+        if prior_evaluation.execution_mode != CANONICAL_EXECUTION_MODE:
+            raise GovernanceValidationError(
+                "execution supersession target must be a governed_canonical_execution lineage record."
+            )
         if prior_evaluation.superseded_by_evaluation_id is not None:
             raise GovernanceValidationError("execution supersession target is already closed by lineage.")
 
@@ -853,7 +858,7 @@ def execute_lane(db: Session, body: LaneExecutionCreate) -> LaneExecutionResultR
         lane_id=lane_id,
         lane_spec_version=body.lane_spec_version,
         lane_family=LaneFamily.CANONICAL_NUMERIC,
-        execution_mode=_clean_identifier(body.execution_mode, "execution_mode"),
+        execution_mode=CANONICAL_EXECUTION_MODE,
         result_status=ResultStatus.COMPUTED_STRICT,
         compatibility_resolution_state=body.compatibility_resolution_state,
         runtime_profile_id=_clean_identifier(body.runtime_profile_id, "runtime_profile_id"),

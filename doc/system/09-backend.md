@@ -25,15 +25,21 @@
 - canonical admission fails closed when runtime profile fields are incomplete
 - canonical admission fails closed when runtime profile is retired or non-deterministic
 - manual ingest may not persist computed canonical truth, caller-supplied output bundles, or caller-supplied output hashes
+- canonical execution mode is server-owned on the execution route and may not be caller-supplied
 - raw_output_hash is derived from the persisted canonical output/factor/trace artifact bundle
+- trace bundle hashing excludes storage ids so identical reruns preserve stable canonical artifact hashes
 - parameter, threshold, and policy bindings must match the evaluation lane when those records declare a lane binding
+- optional prior and decay compatibility bindings must resolve when present
 - canonical numeric output/factor values persist as deterministic decimal strings rather than floats
 - output field names and factor names are unique per evaluation
+- output and factor DTOs fail closed when computed rows are semantically incomplete
 - bounded execution supports only governed Phase 6 lanes and canonical_numeric lane family
 - bounded execution fails closed when variable, parameter, threshold, policy, runtime, or input bindings are missing or inactive
+- bounded execution fails closed when supported parameter payloads or threshold topologies violate the bounded execution contract
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables
 - bounded execution emits inspectable factor rows and tier_1_full trace events for supported lanes
 - bounded execution fails closed when an active canonical execution already exists for the same execution context unless explicit supersession is declared
+- repeat execution over the same governed context preserves stable output, factor, trace, and raw-output hashing when lineage supersession is explicit
 - projection routes are read-only and derive metadata from canonical compatibility bindings
 - projection composition fails closed when source evaluation or source trace truth is missing
 - replay posture fails closed when required bindings are missing

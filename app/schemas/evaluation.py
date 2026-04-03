@@ -39,6 +39,8 @@ class IncidentSeverity(StrEnum):
 
 
 class InputBundleCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     input_bundle_id: str = Field(min_length=1, max_length=36)
     scope_id: str | None = Field(default=None, max_length=255)
     scope_version: int | None = Field(default=None, gt=0)
@@ -75,6 +77,8 @@ class InputBundleRead(EvaluationReadModel):
 
 
 class CompatibilityBinding(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     variable_registry_id: str = Field(min_length=1, max_length=255)
     parameter_set_id: str = Field(min_length=1, max_length=255)
     threshold_set_id: str = Field(min_length=1, max_length=255)
@@ -84,12 +88,33 @@ class CompatibilityBinding(BaseModel):
     decay_registry_id: str | None = Field(default=None, max_length=255)
     compatibility_tuple: CompatibilityTuple
 
+    @model_validator(mode="after")
+    def validate_optional_registry_pairs(self) -> "CompatibilityBinding":
+        optional_pairs = (
+            (
+                self.prior_registry_id,
+                self.compatibility_tuple.prior_registry_version,
+                "prior_registry",
+            ),
+            (
+                self.decay_registry_id,
+                self.compatibility_tuple.decay_registry_version,
+                "decay_registry",
+            ),
+        )
+        for registry_id, registry_version, label in optional_pairs:
+            if (registry_id is None) != (registry_version is None):
+                raise ValueError(f"{label}_id and {label}_version must be provided together.")
+        return self
+
     def canonical_hash(self) -> str:
         payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
         return sha256(payload.encode("utf-8")).hexdigest()
 
 
 class LaneOutputValueCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     output_field_name: str = Field(min_length=1, max_length=255)
     output_posture: OutputPosture
     numeric_value: Decimal | None = None
@@ -100,8 +125,16 @@ class LaneOutputValueCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_value_presence(self) -> "LaneOutputValueCreate":
-        if self.numeric_value is None and self.text_value is None and self.enum_value is None:
-            raise ValueError("output value requires numeric_value, text_value, or enum_value.")
+        populated_values = sum(
+            value is not None for value in (self.numeric_value, self.text_value, self.enum_value)
+        )
+        if populated_values != 1:
+            raise ValueError("output value requires exactly one of numeric_value, text_value, or enum_value.")
+        if self.output_posture == OutputPosture.RAW:
+            if self.numeric_value is None:
+                raise ValueError("raw output posture requires numeric_value.")
+        elif self.numeric_value is not None:
+            raise ValueError("non-raw output posture may not persist numeric_value.")
         return self
 
 
@@ -119,6 +152,8 @@ class LaneOutputValueRead(EvaluationReadModel):
 
 
 class LaneFactorValueCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     factor_name: str = Field(min_length=1, max_length=255)
     raw_value: Decimal | None = None
     normalized_value: Decimal | None = None
@@ -133,9 +168,28 @@ class LaneFactorValueCreate(BaseModel):
         if self.omitted_flag:
             if not self.omission_reason:
                 raise ValueError("omitted factors require omission_reason.")
+            if any(value is not None for value in (self.raw_value, self.normalized_value, self.weighted_value)):
+                raise ValueError("omitted factors may not persist raw_value, normalized_value, or weighted_value.")
             return self
-        if self.raw_value is None:
-            raise ValueError("non-omitted factors require raw_value.")
+        if self.omission_reason is not None:
+            raise ValueError("non-omitted factors may not persist omission_reason.")
+        missing = [
+            field_name
+            for field_name, value in (
+                ("raw_value", self.raw_value),
+                ("normalized_value", self.normalized_value),
+                ("weighted_value", self.weighted_value),
+                ("provenance_class", self.provenance_class),
+                ("volatility_class", self.volatility_class),
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                "non-omitted factors require "
+                + ", ".join(missing)
+                + "."
+            )
         return self
 
 
@@ -154,6 +208,8 @@ class LaneFactorValueRead(EvaluationReadModel):
 
 
 class TraceEventCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     trace_step_order: int = Field(ge=0)
     trace_event_type: str = Field(min_length=1, max_length=255)
     trace_payload_ref: str = Field(min_length=1, max_length=1024)
@@ -171,6 +227,8 @@ class TraceEventRead(EvaluationReadModel):
 
 
 class TraceBundleCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     trace_bundle_id: str = Field(min_length=1, max_length=36)
     trace_tier: TraceTier
     trace_schema_version: int = Field(gt=0)
@@ -190,6 +248,8 @@ class TraceBundleRead(EvaluationReadModel):
 
 
 class LaneEvaluationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     lane_evaluation_id: str = Field(min_length=1, max_length=36)
     supersedes_evaluation_id: str | None = Field(default=None, max_length=36)
     supersession_class: SupersessionClass | None = None
@@ -247,6 +307,8 @@ class LaneEvaluationCreate(BaseModel):
 
 
 class ManualLaneEvaluationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     lane_evaluation_id: str = Field(min_length=1, max_length=36)
     supersedes_evaluation_id: str | None = Field(default=None, max_length=36)
     supersession_class: SupersessionClass | None = None
