@@ -909,3 +909,82 @@ def test_lane_execution_rejects_runtime_inadmissible_profile(db):
 
     assert exc_info.value.status_code == 400
     assert "Phase 6 execution substrate requires the deterministic runtime policy set" in exc_info.value.detail
+
+
+def test_lane_execution_rejects_variable_registry_insufficient_variable_coverage(db):
+    """
+    Verifies that execution is rejected when the bound VariableRegistry record
+    exists and is active, but its payload.variables list does not cover all
+    required variable names for the lane.
+
+    This tests _validate_variable_registry()'s coverage check — a separate
+    guard from the "registry not found" (404) path already tested by
+    test_lane_execution_rejects_missing_binding.
+    """
+    bindings = _seed_execution_bindings(
+        db,
+        lane_id="verification_burden",
+        variable_names=[
+            "implementation_minutes",
+            "verification_minutes",
+            "rework_minutes",
+            "interruption_count",
+            "downstream_fix_minutes",
+            "uncertainty_band",
+        ],
+        parameter_payload={
+            "weights": {
+                "w_I": 0.15,
+                "w_V": 0.25,
+                "w_R": 0.25,
+                "w_X": 0.10,
+                "w_D": 0.10,
+                "w_U": 0.15,
+            },
+            "caps": {
+                "I_cap": 60,
+                "V_cap": 80,
+                "R_cap": 40,
+                "X_cap": 4,
+                "D_cap": 60,
+            },
+        },
+        threshold_payload=_generic_bands(),
+    )
+    _create_input_bundle(
+        db,
+        bindings,
+        {
+            "implementation_minutes": 30,
+            "verification_minutes": 40,
+            "rework_minutes": 10,
+            "interruption_count": 2,
+            "downstream_fix_minutes": 15,
+            "uncertainty_band": "moderate",
+        },
+    )
+
+    # Create a VariableRegistry that exists but only declares one variable —
+    # missing the remaining five required by verification_burden.
+    from app.schemas.governance import VariableRegistryCreate
+    from app.services import registry_service as _rs
+    _rs.create_variable_registry(
+        db,
+        VariableRegistryCreate(
+            variable_registry_id="insufficient-coverage-vars",
+            version=1,
+            effective_from=datetime(2026, 4, 4, tzinfo=timezone.utc),
+            created_by="phase6-hardening-test",
+            payload={"variables": ["implementation_minutes"]},
+        ),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        create_lane_execution(
+            _execution_request(bindings, variable_registry_id="insufficient-coverage-vars"),
+            db,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "does not admit lane verification_burden variables" in exc_info.value.detail
+    assert "verification_minutes" in exc_info.value.detail

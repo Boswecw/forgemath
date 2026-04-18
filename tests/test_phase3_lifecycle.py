@@ -155,6 +155,90 @@ def test_supersession_transition_rejects_misaligned_stale_state(db):
     assert "stale_semantics_changed" in exc_info.value.detail or "lane spec" in exc_info.value.detail
 
 
+def test_transition_succeeds_to_stale_input_invalidated_with_evidence_flag(db):
+    """
+    Positive path for the stale_input_invalidated state.
+
+    The existing test (test_transition_rejects_fresh_when_input_invalidation_is_present)
+    covers the rejection of FRESH with input_bundle_invalidated=True. This test
+    covers the success path: transitioning TO stale_input_invalidated by setting
+    input_bundle_invalidated=True. The lifecycle service requires this flag when
+    the requested stale_state is stale_input_invalidated.
+    """
+    bindings = _seed_phase1_bindings(db)
+    _create_input_bundle(db, bindings)
+    evaluation_service.create_lane_evaluation(db, _evaluation_create(bindings))
+
+    lifecycle = transition_lane_evaluation_lifecycle(
+        "eval-001",
+        LaneEvaluationLifecycleTransitionCreate(
+            replay_state="audit_readable_only",
+            stale_state="stale_input_invalidated",
+            recomputation_action="preserve_as_audit_only",
+            lifecycle_reason_code="input_bundle_invalidated_by_operator",
+            lifecycle_reason_detail="Operator flagged the frozen input bundle as no longer valid.",
+            input_bundle_invalidated=True,
+            created_by="phase3-hardening-test",
+        ),
+        db,
+    )
+
+    assert lifecycle.stale_state == "stale_input_invalidated"
+    assert lifecycle.replay_state == "audit_readable_only"
+    assert lifecycle.recomputation_action == "preserve_as_audit_only"
+    assert lifecycle.lifecycle_events[-1].event_type == "lifecycle_transition"
+    assert lifecycle.lifecycle_events[-1].new_stale_state == "stale_input_invalidated"
+
+
+def test_transition_succeeds_to_stale_upstream_changed_when_variable_registry_superseded(db):
+    """
+    Positive path for stale_upstream_changed.
+
+    Supersedes the bound VariableRegistry (making it a retired upstream binding),
+    then transitions the evaluation to stale_upstream_changed. The lifecycle
+    service checks _has_upstream_change(bindings) which looks for superseded_at
+    on the bound variable_registry, parameter_set, or threshold_set records.
+    """
+    from app.schemas.governance import VariableRegistryCreate
+
+    bindings = _seed_phase1_bindings(db)
+    _create_input_bundle(db, bindings)
+    evaluation_service.create_lane_evaluation(db, _evaluation_create(bindings))
+
+    # Supersede the bound VariableRegistry — this makes the v1 record
+    # have superseded_at set, so _has_upstream_change() returns True.
+    registry_service.create_variable_registry(
+        db,
+        VariableRegistryCreate(
+            variable_registry_id=bindings["variable_registry"].variable_registry_id,
+            version=2,
+            supersedes_version=1,
+            retired_reason="upstream variable registry superseded for lifecycle hardening test",
+            effective_from=datetime(2026, 4, 4, 9, 0, tzinfo=timezone.utc),
+            created_by="phase3-hardening-test",
+            payload={"variables": ["implementation_minutes", "updated_metric"]},
+        ),
+    )
+
+    lifecycle = transition_lane_evaluation_lifecycle(
+        "eval-001",
+        LaneEvaluationLifecycleTransitionCreate(
+            replay_state="audit_readable_only",
+            stale_state="stale_upstream_changed",
+            recomputation_action="mandatory_recompute",
+            lifecycle_reason_code="variable_registry_superseded",
+            lifecycle_reason_detail="Bound VariableRegistry v1 has been superseded by v2.",
+            created_by="phase3-hardening-test",
+        ),
+        db,
+    )
+
+    assert lifecycle.stale_state == "stale_upstream_changed"
+    assert lifecycle.replay_state == "audit_readable_only"
+    assert lifecycle.recomputation_action == "mandatory_recompute"
+    assert lifecycle.lifecycle_events[-1].new_stale_state == "stale_upstream_changed"
+
+
 def test_lineage_read_preserves_superseded_history(db):
     bindings = _seed_phase1_bindings(db)
     _create_input_bundle(db, bindings)

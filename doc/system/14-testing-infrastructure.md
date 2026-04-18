@@ -11,8 +11,9 @@
 | `tests/test_phase3_lifecycle.py` | Lifecycle inspection, stale/replay transitions, and lineage visibility |
 | `tests/test_phase4_runtime_admission.py` | Deterministic runtime admission persistence, inspection, and fail-closed invalid profile checks |
 | `tests/test_phase5_projections.py` | Projection metadata, truth-preserving summary/detail/factor/trace/replay reads, and fail-closed missing-source checks |
-| `tests/test_phase6_execution.py` | Supported lane execution happy paths, repeatability/hash-stability checks, and fail-closed missing-binding, missing-input, unsupported-lane, invalid-parameter, invalid-threshold, and runtime-profile execution checks |
+| `tests/test_phase6_execution.py` | Supported lane execution happy paths, repeatability/hash-stability checks, and fail-closed missing-binding, missing-input, unsupported-lane, invalid-parameter, invalid-threshold, runtime-profile, and variable-registry insufficient-coverage execution checks |
 | `tests/test_phase7_hardening.py` | Persistence-level active canonical execution exclusivity, determinism-sensitive migration package validation, runtime-recovery inspection, and supersession hardening checks |
+| `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
 | `tests/test_postgres_invariants.py` | Postgres-backed migration/schema invariant checks when `FORGEMATH_POSTGRES_TEST_URL` is supplied |
 
@@ -40,6 +41,12 @@ It also validates the hardening slices for:
 - determinism-sensitive migration package metadata rules
 - runtime-profile recovery posture derivation on inspection
 - supersession temporal-order and cycle protection
+- per-factor golden-vector pinning (raw, normalized, weighted values)
+- trace summary format stability (_decimal_to_str output for known inputs)
+- _clamp_unit saturation at 1.0 when exposure_factor arithmetic exceeds unit ceiling
+- variable registry insufficient coverage rejection (registry present, variables missing)
+- stale_input_invalidated positive transition path with input_bundle_invalidated evidence
+- stale_upstream_changed positive transition path when upstream registry is superseded
 
 HTTP route checks and Postgres-backed invariant checks are present but may skip in
 restricted environments that block localhost binding or do not provide a Postgres URL.

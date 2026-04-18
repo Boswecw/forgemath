@@ -3,7 +3,7 @@
 > Canonical authority substrate for governed lane math in the Forge ecosystem.
 > "Canonical truth before canonical execution."
 
-**Document version:** 1.7 (2026-04-03) — Phase 7 durability and control hardening
+**Document version:** 1.8 (2026-04-04) — Gap-closure hardening pass: golden vectors, clamp boundary, variable coverage, and stale lifecycle positive paths
 
 ---
 
