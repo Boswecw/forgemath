@@ -65,6 +65,13 @@ PHASE6_RUNTIME_REQUIREMENTS = {
 DECIMAL_CONTEXT = Context(prec=34, rounding=ROUND_HALF_EVEN)
 ZERO = Decimal("0")
 ONE = Decimal("1")
+CANONICAL_OUTPUT_QUANT = Decimal("0.0000000000000000000000000001")
+
+
+def _canonical_output_decimal(value: Decimal) -> Decimal:
+    with localcontext(DECIMAL_CONTEXT):
+        return value.quantize(CANONICAL_OUTPUT_QUANT)
+
 CANONICAL_EXECUTION_MODE = "governed_canonical_execution"
 
 UNCERTAINTY_BAND_MAP = {
@@ -592,6 +599,7 @@ def _build_lane_artifacts(
     band_label: str,
     factors: list[DerivedFactor],
 ) -> DerivedLaneArtifacts:
+    score = _canonical_output_decimal(score)
     raw_output_field_name = f"{lane_id}_raw"
     band_output_field_name = f"{lane_id}_band"
 
