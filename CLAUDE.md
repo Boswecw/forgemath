@@ -10,7 +10,7 @@
 | Governance Models | Canonical persistence layer | `app/models/governance.py` | Versioned canonical truth for Phase 1 tables |
 | Schemas | Request/read contract layer | `app/schemas/governance.py` | Separate write models from read models |
 | Migrations | Database build surface | `alembic/`, `alembic/versions/20260402_0001_phase1_foundation.py` | Schema authority for Phase 1 |
-| Documentation Stack | Canonical repo context | `doc/system/`, `SYSTEM.md`, `docs/` | Repo reality and operator handoff |
+| Documentation Stack | Canonical repo context | `doc/system/`, `doc/MATSYSTEM.md`, `docs/` | Repo reality and operator handoff |
 
 ## Coding Standards
 
@@ -26,7 +26,7 @@
 - Runtime code lives under `app/`.
 - Alembic migrations live under `alembic/versions/`.
 - Tests live under `tests/`.
-- Canonical system documentation is authored in `doc/system/` and assembled into root `SYSTEM.md`.
+- Canonical system documentation is authored in `doc/system/` and assembled into `doc/MATSYSTEM.md` (the MAT-designated canonical artifact).
 - New domain docs belong in `docs/`.
 
 ## Context Loading
@@ -57,7 +57,7 @@
 
 ## Change Protocol
 
-- Edit `doc/system/` parts, never root `SYSTEM.md`, then run `doc/system/BUILD.sh`.
+- Edit `doc/system/` parts, never the assembled `doc/MATSYSTEM.md`, then run `doc/system/BUILD.sh`.
 - Keep new files inside known repo boundaries and explain why they exist.
 - Prefer patches over broad rewrites.
 - If code changes architectural truth, update `docs/` and `doc/system/` in the same turn.
