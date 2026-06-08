@@ -41,7 +41,10 @@ def _enum_check(column_name: str, values: tuple[str, ...], name: str) -> sa.Chec
     return sa.CheckConstraint(f"{column_name} IN ({joined})", name=name)
 
 
-def _versioned_columns(identity_column: str) -> list[sa.Column]:
+def _versioned_columns(identity_column: str, table_name: str, uq_name: str) -> list[sa.Column]:
+    # Constraint names are kept identical to the SQLAlchemy model __table_args__
+    # declarations so that the migration-built schema and the model metadata stay
+    # name-aligned (clean autogenerate, name-safe ALTER/DROP on Postgres).
     return [
         sa.Column("id", sa.String(length=36), primary_key=True),
         sa.Column(identity_column, sa.String(length=255), nullable=False),
@@ -58,11 +61,11 @@ def _versioned_columns(identity_column: str) -> list[sa.Column]:
             server_default=sa.text("CURRENT_TIMESTAMP"),
         ),
         sa.Column("created_by", sa.String(length=255), nullable=True),
-        sa.UniqueConstraint(identity_column, "version", name=f"uq_{identity_column}_version"),
-        sa.CheckConstraint("version > 0", name=f"ck_{identity_column}_version_positive"),
+        sa.UniqueConstraint(identity_column, "version", name=uq_name),
+        sa.CheckConstraint("version > 0", name=f"ck_{table_name}_version_positive"),
         sa.CheckConstraint(
             "superseded_by_id IS NULL OR superseded_at IS NOT NULL",
-            name=f"ck_{identity_column}_supersession_consistency",
+            name=f"ck_{table_name}_supersession_consistency",
         ),
     ]
 
@@ -70,7 +73,11 @@ def _versioned_columns(identity_column: str) -> list[sa.Column]:
 def upgrade() -> None:
     op.create_table(
         "forgemath_scope_registry",
-        *_versioned_columns("scope_id"),
+        *_versioned_columns(
+            "scope_id",
+            "forgemath_scope_registry",
+            "uq_forgemath_scope_registry_identity_version",
+        ),
         sa.Column("scope_class", sa.String(length=32), nullable=False),
         sa.Column("display_name", sa.String(length=255), nullable=False),
         sa.Column("payload", sa.JSON(), nullable=False),
@@ -84,7 +91,11 @@ def upgrade() -> None:
 
     op.create_table(
         "forgemath_lane_specs",
-        *_versioned_columns("lane_id"),
+        *_versioned_columns(
+            "lane_id",
+            "forgemath_lane_specs",
+            "uq_forgemath_lane_specs_lane_id_version",
+        ),
         sa.Column("lane_family", sa.String(length=32), nullable=False),
         sa.Column("trace_tier", sa.String(length=32), nullable=False),
         sa.Column("is_admissible", sa.Boolean(), nullable=False, server_default=sa.true()),
@@ -96,18 +107,26 @@ def upgrade() -> None:
 
     op.create_table(
         "forgemath_variable_registry",
-        *_versioned_columns("variable_registry_id"),
+        *_versioned_columns(
+            "variable_registry_id",
+            "forgemath_variable_registry",
+            "uq_forgemath_variable_registry_identity_version",
+        ),
         sa.Column("payload", sa.JSON(), nullable=False),
     )
     op.create_index(
-        "ix_forgemath_variable_registry_identity",
+        "ix_forgemath_variable_registry_variable_registry_id",
         "forgemath_variable_registry",
         ["variable_registry_id"],
     )
 
     op.create_table(
         "forgemath_parameter_sets",
-        *_versioned_columns("parameter_set_id"),
+        *_versioned_columns(
+            "parameter_set_id",
+            "forgemath_parameter_sets",
+            "uq_forgemath_parameter_sets_identity_version",
+        ),
         sa.Column("lane_id", sa.String(length=255), nullable=True),
         sa.Column("payload", sa.JSON(), nullable=False),
     )
@@ -119,7 +138,11 @@ def upgrade() -> None:
 
     op.create_table(
         "forgemath_threshold_sets",
-        *_versioned_columns("threshold_set_id"),
+        *_versioned_columns(
+            "threshold_set_id",
+            "forgemath_threshold_sets",
+            "uq_forgemath_threshold_sets_identity_version",
+        ),
         sa.Column("lane_id", sa.String(length=255), nullable=True),
         sa.Column("payload", sa.JSON(), nullable=False),
     )
@@ -131,7 +154,11 @@ def upgrade() -> None:
 
     op.create_table(
         "forgemath_policy_bundles",
-        *_versioned_columns("policy_bundle_id"),
+        *_versioned_columns(
+            "policy_bundle_id",
+            "forgemath_policy_bundles",
+            "uq_forgemath_policy_bundles_identity_version",
+        ),
         sa.Column("policy_kind", sa.String(length=32), nullable=False),
         sa.Column("lane_id", sa.String(length=255), nullable=True),
         sa.Column("payload", sa.JSON(), nullable=False),
@@ -145,7 +172,11 @@ def upgrade() -> None:
 
     op.create_table(
         "forgemath_runtime_profiles",
-        *_versioned_columns("runtime_profile_id"),
+        *_versioned_columns(
+            "runtime_profile_id",
+            "forgemath_runtime_profiles",
+            "uq_forgemath_runtime_profiles_identity_version",
+        ),
         sa.Column("numeric_precision_mode", sa.String(length=64), nullable=False),
         sa.Column("rounding_mode", sa.String(length=64), nullable=False),
         sa.Column("sort_policy_id", sa.String(length=255), nullable=False),
@@ -167,7 +198,11 @@ def upgrade() -> None:
 
     op.create_table(
         "forgemath_migration_packages",
-        *_versioned_columns("migration_id"),
+        *_versioned_columns(
+            "migration_id",
+            "forgemath_migration_packages",
+            "uq_forgemath_migration_packages_identity_version",
+        ),
         sa.Column("migration_class", sa.String(length=48), nullable=False),
         sa.Column("source_versions", sa.JSON(), nullable=False),
         sa.Column("target_versions", sa.JSON(), nullable=False),
@@ -233,7 +268,7 @@ def downgrade() -> None:
     op.drop_table("forgemath_parameter_sets")
 
     op.drop_index(
-        "ix_forgemath_variable_registry_identity",
+        "ix_forgemath_variable_registry_variable_registry_id",
         table_name="forgemath_variable_registry",
     )
     op.drop_table("forgemath_variable_registry")

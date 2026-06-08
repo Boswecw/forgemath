@@ -23,6 +23,12 @@ Assembly contract:
 | §6 | `40-change-control.md` | Change-control workflow, proposal lifecycle, and audit. |
 | §7 | `90-appendices.md` | Appendices, glossary, and cross-references. |
 
+> **Interim (pending documentation-scheme consolidation):** `BUILD.sh` currently
+> assembles the granular content chapters (`01-overview-philosophy.md` …
+> `15-handover-migration-notes.md`), not the protocol-skeleton chapters tabled
+> above. Both chapter sets are retained on disk during the migration; see
+> `15-handover-migration-notes.md` → Deferred Work.
+
 ## Quick Assembly
 
 ```bash

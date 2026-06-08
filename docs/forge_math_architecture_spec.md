@@ -1,7 +1,7 @@
 # ForgeMath Architecture Spec
 
 > Legacy planning artifact. Current repo truth now lives in
-> [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md).
+> [MATSYSTEM.md](../doc/MATSYSTEM.md).
 > This file captures early Phase 1 architecture intent and is not the authoritative
 > description of the current Phase 1-6 implementation.
 

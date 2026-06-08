@@ -1,7 +1,7 @@
 # ForgeMath Governance Foundation Module Spec
 
 > Legacy Phase 1 module-spec artifact. Current repo truth is maintained in
-> [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md).
+> [MATSYSTEM.md](../doc/MATSYSTEM.md).
 
 **Date:** April 2, 2026  
 **Time:** America/Kentucky/Louisville  

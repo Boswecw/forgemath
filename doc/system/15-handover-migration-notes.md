@@ -24,7 +24,11 @@ Gap-closure hardening pass completed against `forge_math_lane_governance_persist
 | No stale_input_invalidated positive path | `tests/test_phase3_lifecycle.py`: successful transition with input_bundle_invalidated=True |
 | No stale_upstream_changed positive path | `tests/test_phase3_lifecycle.py`: successful transition after variable registry supersession |
 
-**Baseline:** 57 passing tests. **After hardening:** 63 passing tests. The 4 pre-existing failures in `test_http_contracts.py` require a live DataForge environment and are not regressions.
+**Baseline:** 57 passing tests. **After this hardening pass:** 63 passing tests.
+
+The 4 failures in `test_http_contracts.py` are **not** a DataForge dependency: that module starts a uvicorn subprocess through a hardcoded `PYTHON_BIN` interpreter path, so it fails on any host where that path is absent. They are environment/harness failures, not governance regressions.
+
+**Current suite (2026-06-08):** `python -m pytest tests -q --ignore=tests/lineage` → 72 passing, 1 skipped, 4 failing (the `test_http_contracts.py` cases above). A bare `python -m pytest tests -q` currently aborts during collection because `tests/lineage/` imports the external `forge_lineage_sdk`, which is not in `requirements.txt`.
 
 **Remaining open gap from contract audit:** `forgemath_projection_records` table (contract §11) is not implemented — projections are ephemeral read models in `projection_service.py`. This is architecturally intentional for the current phase and documented as deferred.
 
@@ -38,3 +42,5 @@ Gap-closure hardening pass completed against `forge_math_lane_governance_persist
 - execution expansion beyond the bounded Phase 6 lane wave
 - hybrid gate execution and broader multi-lane orchestration
 - broader database-level exclusion or partitioning strategies if future execution expansion outgrows the current unique active execution key
+- `doc/system/` documentation-scheme consolidation — two chapter numbering schemes currently coexist (the granular content chapters `01-overview-philosophy.md` … `15-handover-migration-notes.md` and the Forge Documentation Protocol v1 skeleton chapters `00-overview.md`, `01-architecture.md`, `10-scope.md`, `20-structure.md`, `30-governance.md`, `40-change-control.md`, `90-appendices.md`). `BUILD.sh` assembles the granular content chapters; consolidating onto one scheme is deferred
+- test-harness portability — `tests/test_http_contracts.py` hardcodes `PYTHON_BIN`, and `tests/lineage/` depends on the un-vendored `forge_lineage_sdk`; both should be made environment-independent (e.g. `sys.executable` / guarded optional import)

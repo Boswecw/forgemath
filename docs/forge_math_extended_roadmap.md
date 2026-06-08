@@ -1,7 +1,7 @@
 # ForgeMath Extended Roadmap
 
 > Legacy planning artifact. Current implemented repo truth is tracked in
-> [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md).
+> [MATSYSTEM.md](../doc/MATSYSTEM.md).
 > Use this file as historical roadmap context, not as the current implementation receipt.
 
 **Date:** April 2, 2026  

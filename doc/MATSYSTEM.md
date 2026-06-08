@@ -23,37 +23,17 @@ Assembly contract:
 | §6 | `40-change-control.md` | Change-control workflow, proposal lifecycle, and audit. |
 | §7 | `90-appendices.md` | Appendices, glossary, and cross-references. |
 
+> **Interim (pending documentation-scheme consolidation):** `BUILD.sh` currently
+> assembles the granular content chapters (`01-overview-philosophy.md` …
+> `15-handover-migration-notes.md`), not the protocol-skeleton chapters tabled
+> above. Both chapter sets are retained on disk during the migration; see
+> `15-handover-migration-notes.md` → Deferred Work.
+
 ## Quick Assembly
 
 ```bash
 bash doc/system/BUILD.sh
 ```
-
----
-
-# Overview
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-System identity, role, and boundary with the rest of the Forge ecosystem.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
-# Architecture
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-High-level architecture, authority posture, and surface ownership.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
 
 ---
 
@@ -404,19 +384,6 @@ runtime dependencies. They are operator and design inputs.
 
 ---
 
-# Scope
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-Scope and authority boundary of this documentation system.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
 ## 11. Database Schema
 
 The repo currently ships six schema migrations:
@@ -670,7 +637,11 @@ Gap-closure hardening pass completed against `forge_math_lane_governance_persist
 | No stale_input_invalidated positive path | `tests/test_phase3_lifecycle.py`: successful transition with input_bundle_invalidated=True |
 | No stale_upstream_changed positive path | `tests/test_phase3_lifecycle.py`: successful transition after variable registry supersession |
 
-**Baseline:** 57 passing tests. **After hardening:** 63 passing tests. The 4 pre-existing failures in `test_http_contracts.py` require a live DataForge environment and are not regressions.
+**Baseline:** 57 passing tests. **After this hardening pass:** 63 passing tests.
+
+The 4 failures in `test_http_contracts.py` are **not** a DataForge dependency: that module starts a uvicorn subprocess through a hardcoded `PYTHON_BIN` interpreter path, so it fails on any host where that path is absent. They are environment/harness failures, not governance regressions.
+
+**Current suite (2026-06-08):** `python -m pytest tests -q --ignore=tests/lineage` → 72 passing, 1 skipped, 4 failing (the `test_http_contracts.py` cases above). A bare `python -m pytest tests -q` currently aborts during collection because `tests/lineage/` imports the external `forge_lineage_sdk`, which is not in `requirements.txt`.
 
 **Remaining open gap from contract audit:** `forgemath_projection_records` table (contract §11) is not implemented — projections are ephemeral read models in `projection_service.py`. This is architecturally intentional for the current phase and documented as deferred.
 
@@ -684,58 +655,5 @@ Gap-closure hardening pass completed against `forge_math_lane_governance_persist
 - execution expansion beyond the bounded Phase 6 lane wave
 - hybrid gate execution and broader multi-lane orchestration
 - broader database-level exclusion or partitioning strategies if future execution expansion outgrows the current unique active execution key
-
----
-
-# Structure
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-Module/chapter layout and cross-reference rules.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
-# Governance
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-Ownership, review, and change-authority boundaries.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
-# Change Control
-
-**Document version:** 1.0 (bootstrap scaffold)
-
-Change-control workflow, proposal lifecycle, and audit.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
-
----
-
-# Appendices
-
-**Document version:** 1.0 (carry-forward)
-
-Appendices, glossary, and cross-references.
-
-## Unmapped legacy chapters
-
-The following legacy chapters were carried forward but could not be
-deterministically mapped to a class-aware slot. Review and place them by
-hand:
-
-- `ForgeMath — Complete System Reference`
+- `doc/system/` documentation-scheme consolidation — two chapter numbering schemes currently coexist (the granular content chapters `01-overview-philosophy.md` … `15-handover-migration-notes.md` and the Forge Documentation Protocol v1 skeleton chapters `00-overview.md`, `01-architecture.md`, `10-scope.md`, `20-structure.md`, `30-governance.md`, `40-change-control.md`, `90-appendices.md`). `BUILD.sh` assembles the granular content chapters; consolidating onto one scheme is deferred
+- test-harness portability — `tests/test_http_contracts.py` hardcodes `PYTHON_BIN`, and `tests/lineage/` depends on the un-vendored `forge_lineage_sdk`; both should be made environment-independent (e.g. `sys.executable` / guarded optional import)

@@ -31,7 +31,7 @@ Current non-goals:
 - projection persistence or downstream UI surfaces
 
 Current documentation authority:
-- [SYSTEM.md](/home/charlie/Forge/ecosystem/ForgeMath/SYSTEM.md) is the assembled repo-truth reference
+- [doc/MATSYSTEM.md](doc/MATSYSTEM.md) is the assembled, canonical repo-truth reference (canonical artifacts carry the three-letter `MAT` designator)
 - `docs/*.md` files are retained as historical planning artifacts unless explicitly updated to current state
 
 ## Quick Start
