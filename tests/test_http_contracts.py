@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import sys
 import time
 from urllib import error, request
 import uuid
@@ -21,7 +22,9 @@ from tests.test_phase6_execution import _execution_request, _seed_execution_bind
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PYTHON_BIN = "/home/charlie/Forge/ecosystem/DataForge/.venv/bin/python"
+# Run the uvicorn subprocess under the same interpreter that runs the tests, so
+# the suite is portable instead of bound to one developer's virtualenv path.
+PYTHON_BIN = sys.executable
 
 
 def _pick_free_port() -> int:

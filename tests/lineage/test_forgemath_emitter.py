@@ -9,10 +9,17 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 # Ensure the ForgeMath src tree wins for app.lineage.* imports.
 _FORGEMATH_ROOT = Path(__file__).resolve().parents[2]
 if str(_FORGEMATH_ROOT) not in sys.path:
     sys.path.insert(0, str(_FORGEMATH_ROOT))
+
+# The lineage emitter binds to the external forge_lineage_sdk (a vendored Forge
+# ecosystem package, not published to PyPI). When it is not importable, skip
+# this module rather than aborting collection for the entire test suite.
+pytest.importorskip("forge_lineage_sdk")
 
 from tests.lineage._lineage_harness import make_recording_client  # noqa: E402
 
