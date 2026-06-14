@@ -74,9 +74,17 @@ class ForgeMathLineageEmitter:
         deterministic: bool = True,
         node_revision: str | None = None,
         trace_id: str | None = None,
+        upstream_eval_cal_node_id: str | None = None,
     ) -> LineageEmissionStatus:
         """Emit a forgemath_evaluation node + a forgemath_output node + a
-        ``produced`` ImpactEdge between them. Non-blocking."""
+        ``produced`` ImpactEdge between them. Non-blocking.
+
+        When ``upstream_eval_cal_node_id`` is given, also emit a ``consumed`` edge from that
+        upstream eval-cal-node node into this forgemath_evaluation node — the cross-producer link
+        that lets a downstream consumer (ForgeCommand's gate-walk) traverse forge-eval bundle →
+        eval-cal → forgemath_output. This asserts only ForgeMath's own lineage (what it consumed);
+        it does not recompute or override upstream authority.
+        """
         try:
             return self._emit_evaluation_and_output(
                 lane_evaluation_id=lane_evaluation_id,
@@ -86,6 +94,7 @@ class ForgeMathLineageEmitter:
                 deterministic=deterministic,
                 node_revision=node_revision,
                 trace_id=trace_id,
+                upstream_eval_cal_node_id=upstream_eval_cal_node_id,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("forgemath lineage emission raised", exc_info=exc)
@@ -132,6 +141,7 @@ class ForgeMathLineageEmitter:
         deterministic: bool,
         node_revision: str | None,
         trace_id: str | None,
+        upstream_eval_cal_node_id: str | None = None,
     ) -> LineageEmissionStatus:
         trace = trace_id or f"trace:forgemath:{lane_evaluation_id}"
 
@@ -193,11 +203,29 @@ class ForgeMathLineageEmitter:
             stable_source_id=f"{eval_node['node_id']}->{output_node['node_id']}",
         )
 
+        edges = [produced_edge]
+        # Cross-producer link: the upstream eval-cal node "consumed" into this evaluation, so a
+        # downstream walk (bundle → eval-cal → forgemath_output) is edge-connected. Emitted only
+        # when the caller resolved the upstream node id.
+        if upstream_eval_cal_node_id:
+            consumed_edge = build_edge(
+                source_node_id=upstream_eval_cal_node_id,
+                target_node_id=eval_node["node_id"],
+                edge_type="consumed",
+                causality_class="derived",
+                effect_class="shaping",
+                trace_id=trace,
+                writer_identity=self.WRITER_IDENTITY,
+                created_by_system=self.SOURCE_SYSTEM,
+                stable_source_id=f"{upstream_eval_cal_node_id}->{eval_node['node_id']}",
+            )
+            edges.append(consumed_edge)
+
         envelope = build_envelope(
             writer_identity=self.WRITER_IDENTITY,
             trace_id=trace,
             nodes=[eval_node, output_node],
-            edges=[produced_edge],
+            edges=edges,
         )
         result = self._client.emit_envelope(envelope)
 

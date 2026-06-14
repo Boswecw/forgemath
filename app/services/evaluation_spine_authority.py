@@ -239,6 +239,12 @@ def evaluate_calibration_report_file(input_path: Path, output_dir: Path) -> dict
     report_payload = _read_json_object(input_path)
     lane_ref_payload = build_forgemath_lane_evaluation_ref_payload(report_payload)
     output_path = write_forgemath_lane_evaluation_ref_payload(lane_ref_payload, output_dir)
+    # Opt-in, non-blocking lineage emission (default off; the evaluation above is unaffected).
+    from app.lineage.spine_emit import emit_forgemath_lineage
+
+    lineage_outcome = emit_forgemath_lineage(
+        report_payload=report_payload, output_payload=lane_ref_payload
+    )
     return {
         "artifact_family": "forgemath_lane_evaluation_ref",
         "artifact_version": 1,
@@ -247,6 +253,7 @@ def evaluate_calibration_report_file(input_path: Path, output_dir: Path) -> dict
         "validation_state": "passed",
         "trace": build_trace_bundle(report_payload),
         "payload": lane_ref_payload,
+        "lineage": lineage_outcome,
     }
 
 
