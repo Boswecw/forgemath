@@ -243,7 +243,10 @@ def evaluate_calibration_report_file(input_path: Path, output_dir: Path) -> dict
     from app.lineage.spine_emit import emit_forgemath_lineage
 
     lineage_outcome = emit_forgemath_lineage(
-        report_payload=report_payload, output_payload=lane_ref_payload
+        report_payload=report_payload,
+        output_payload=lane_ref_payload,
+        output_artifact_path=str(output_path),
+        output_artifact_hash=payload_sha256(lane_ref_payload),
     )
     return {
         "artifact_family": "forgemath_lane_evaluation_ref",

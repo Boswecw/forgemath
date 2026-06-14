@@ -50,11 +50,19 @@ def _lane_evaluation_id(output_payload: dict[str, Any]) -> str:
 
 
 def emit_forgemath_lineage(
-    *, report_payload: dict[str, Any], output_payload: dict[str, Any]
+    *,
+    report_payload: dict[str, Any],
+    output_payload: dict[str, Any],
+    output_artifact_path: str | None = None,
+    output_artifact_hash: str | None = None,
 ) -> str:
     """Emit forgemath_evaluation + forgemath_output (+ consumed edge to eval-cal when found).
     Returns the lineage outcome string. Default-OFF (``FORGEMATH_LINEAGE_URL`` unset → no-op).
     Never raises.
+
+    ``output_artifact_path``/``output_artifact_hash`` locate the full output contract the authority
+    wrote; the forgemath_output node references it via artifact_ref so a consumer resolves the rich
+    result (incl. the ``proposal_candidate_allowed`` gate) from the artifact, not the slim node.
     """
     base_url = os.environ.get(FORGEMATH_LINEAGE_URL_ENV, "").strip()
     if not base_url:
@@ -84,6 +92,8 @@ def emit_forgemath_lineage(
             output_payload=dict(output_payload),
             evaluated_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             upstream_eval_cal_node_id=upstream,
+            output_artifact_path=output_artifact_path,
+            output_artifact_hash=output_artifact_hash,
         )
         return status.outcome
     except Exception as exc:  # noqa: BLE001

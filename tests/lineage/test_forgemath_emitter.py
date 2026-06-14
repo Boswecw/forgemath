@@ -136,6 +136,44 @@ def test_emitter_is_non_blocking_when_unreachable():
     assert status.outcome in ("lineage_missing", "lineage_degraded")
 
 
+def test_rich_output_payload_is_slimmed_and_node_passes_real_schema():
+    """REGRESSION GUARD: the recording client bypasses SDK validation, which is why a rich
+    (non-conformant) forgemath_output payload shipped undetected. Feed the REAL rich payload
+    (incl. proposal_candidate_allowed + the other domain fields), assert the node is slimmed to
+    the forgemath_output.v1 allowed set, carries an ArtifactRef.v1, and PASSES real validation;
+    the gate stays in the artifact, not the node."""
+    from forge_lineage_sdk.validators import validate_node
+
+    emitter, backend = _emitter()
+    rich = {
+        "schema_version": "forgemath_output.v1",
+        "canonical_evaluation_ref": "forgemath_lane_evaluation:abc:v1",
+        "proposal_candidate_allowed": False,  # the gate — must NOT land on the slim node
+        "rollback_required": False,
+        "lane_id": "lane-A",
+        "source_artifact_hash": "sha256:" + "a" * 64,
+    }
+    status = emitter.emit_evaluation_and_output(
+        lane_evaluation_id="lane-eval-rich",
+        lane_id="lane-A",
+        evaluated_at="2026-06-14T00:00:00Z",
+        output_payload=rich,
+        output_artifact_path="/runs/x/forgemath_lane_evaluation_ref.contract.json",
+        output_artifact_hash="b" * 64,
+    )
+    assert status.outcome == "lineage_available"
+    nodes = {n["node_type"]: n for n in backend.envelopes[0]["nodes"]}
+    out = nodes["forgemath_output"]
+    assert set(out["payload"].keys()) <= {
+        "schema_version", "output_id", "lane_evaluation_id", "payload_hash", "produced_at", "stale",
+    }
+    assert "proposal_candidate_allowed" not in out["payload"]  # gate lives in the artifact
+    assert out["artifact_ref"]["schema_version"] == "ArtifactRef.v1"
+    assert out["artifact_ref"]["artifact_id"].endswith("forgemath_lane_evaluation_ref.contract.json")
+    for node in backend.envelopes[0]["nodes"]:
+        validate_node(node)  # raises if non-conformant
+
+
 def test_null_emitter_is_safe():
     null = NullLineageEmitter()
     assert null.emit_evaluation_and_output(lane_evaluation_id="x").outcome == "lineage_missing"

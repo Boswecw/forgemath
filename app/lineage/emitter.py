@@ -30,6 +30,19 @@ _ensure_sdk_on_path()
 from forge_lineage_sdk import LineageClient, LocalOutcome  # noqa: E402
 from forge_lineage_sdk.builders import build_edge, build_envelope, build_node  # noqa: E402
 
+import re as _re
+
+_HEX64 = _re.compile(r"^[0-9a-f]{64}$")
+
+
+def _hex64(value: Any) -> str | None:
+    """Normalize a hash to a bare 64-char lowercase hex digest (ArtifactRef.v1 / payload_hash
+    pattern), stripping an optional ``sha256:`` prefix. Returns None if it isn't one."""
+    s = str(value or "").strip()
+    if s.startswith("sha256:"):
+        s = s[len("sha256:"):]
+    return s if _HEX64.match(s) else None
+
 
 @dataclass
 class LineageEmissionStatus:
@@ -75,6 +88,8 @@ class ForgeMathLineageEmitter:
         node_revision: str | None = None,
         trace_id: str | None = None,
         upstream_eval_cal_node_id: str | None = None,
+        output_artifact_path: str | None = None,
+        output_artifact_hash: str | None = None,
     ) -> LineageEmissionStatus:
         """Emit a forgemath_evaluation node + a forgemath_output node + a
         ``produced`` ImpactEdge between them. Non-blocking.
@@ -84,6 +99,13 @@ class ForgeMathLineageEmitter:
         that lets a downstream consumer (ForgeCommand's gate-walk) traverse forge-eval bundle →
         eval-cal → forgemath_output. This asserts only ForgeMath's own lineage (what it consumed);
         it does not recompute or override upstream authority.
+
+        ``output_artifact_path``/``output_artifact_hash`` locate the full output contract artifact
+        (which carries the rich evaluation result, incl. the ``proposal_candidate_allowed`` gate).
+        The forgemath_output lineage node payload is identity-only (``forgemath_output.v1`` is
+        ``additionalProperties:false``); the rich fields live in the artifact, referenced via the
+        node's ``artifact_ref`` (``ArtifactRef.v1``) so a consumer resolves the gate from the file,
+        not the node payload.
         """
         try:
             return self._emit_evaluation_and_output(
@@ -95,6 +117,8 @@ class ForgeMathLineageEmitter:
                 node_revision=node_revision,
                 trace_id=trace_id,
                 upstream_eval_cal_node_id=upstream_eval_cal_node_id,
+                output_artifact_path=output_artifact_path,
+                output_artifact_hash=output_artifact_hash,
             )
         except Exception as exc:  # noqa: BLE001
             logger.warning("forgemath lineage emission raised", exc_info=exc)
@@ -142,6 +166,8 @@ class ForgeMathLineageEmitter:
         node_revision: str | None,
         trace_id: str | None,
         upstream_eval_cal_node_id: str | None = None,
+        output_artifact_path: str | None = None,
+        output_artifact_hash: str | None = None,
     ) -> LineageEmissionStatus:
         trace = trace_id or f"trace:forgemath:{lane_evaluation_id}"
 
@@ -168,27 +194,44 @@ class ForgeMathLineageEmitter:
             stable_source_id=f"forgemath:eval:{lane_evaluation_id}",
         )
 
-        # Compute output identity if not provided.
-        if "payload_hash" not in output_payload or "output_id" not in output_payload:
-            digest = hashlib.sha256(
-                json.dumps(output_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            ).hexdigest()
-            output_payload = {**output_payload}
-            output_payload.setdefault("output_id", f"forgemath_output:{digest[:16]}")
-            output_payload.setdefault("payload_hash", digest)
-            output_payload.setdefault("lane_evaluation_id", lane_evaluation_id)
-            output_payload.setdefault("schema_version", "forgemath_output.v1")
+        # The forgemath_output LINEAGE node is identity-only (forgemath_output.v1 is
+        # additionalProperties:false). The rich evaluation result — incl. the gate
+        # ``proposal_candidate_allowed`` — lives in the output CONTRACT artifact, located via the
+        # node's artifact_ref. So slim the node payload to the schema-allowed fields and carry the
+        # rich data by reference (consumers resolve the gate from the artifact, not the node).
+        digest = hashlib.sha256(
+            json.dumps(output_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        output_id = str(output_payload.get("output_id") or f"forgemath_output:{digest[:16]}")
+        slim_output_payload: dict[str, Any] = {
+            "schema_version": "forgemath_output.v1",
+            "output_id": output_id,
+            "lane_evaluation_id": lane_evaluation_id,
+            "payload_hash": _hex64(output_payload.get("payload_hash")) or digest,
+            "produced_at": evaluated_at,
+        }
+
+        # ArtifactRef.v1 to the full output contract (carries proposal_candidate_allowed).
+        output_artifact_ref = None
+        if output_artifact_path:
+            output_artifact_ref = {
+                "schema_version": "ArtifactRef.v1",
+                "artifact_family": "forgemath_lane_evaluation_ref",
+                "artifact_id": output_artifact_path,
+                "payload_hash": _hex64(output_artifact_hash) or digest,
+            }
 
         output_node = build_node(
             node_type="forgemath_output",
             payload_schema_id="forgemath_output",
             payload_schema_version="v1",
-            payload=output_payload,
+            payload=slim_output_payload,
             source_system=self.SOURCE_SYSTEM,
             source_component="forgemath/output",
             trace_id=trace,
             writer_identity=self.WRITER_IDENTITY,
-            stable_source_id=f"forgemath:output:{output_payload['output_id']}",
+            stable_source_id=f"forgemath:output:{output_id}",
+            artifact_ref=output_artifact_ref,
         )
 
         produced_edge = build_edge(
