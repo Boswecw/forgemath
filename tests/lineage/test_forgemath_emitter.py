@@ -61,6 +61,31 @@ def test_emit_evaluation_and_output_writes_full_pair():
     assert env["edges"][0]["causality_class"] == "deterministic"
 
 
+def test_upstream_eval_cal_node_id_emits_a_consumed_edge():
+    """Option A: the cross-producer link so a downstream walk reaches forgemath_output."""
+    emitter, backend = _emitter()
+    status = emitter.emit_evaluation_and_output(
+        lane_evaluation_id="lane-eval-xp",
+        lane_id="lane-A",
+        evaluated_at="2026-05-04T16:00:00Z",
+        output_payload={
+            "output_id": "out-xp",
+            "lane_evaluation_id": "lane-eval-xp",
+            "payload_hash": "e" * 64,
+            "schema_version": "forgemath_output.v1",
+        },
+        upstream_eval_cal_node_id="node:eval_cal_record:upstream-1",
+    )
+    assert status.outcome == "lineage_available"
+    env = backend.envelopes[0]
+    edge_types = {e["edge_type"] for e in env["edges"]}
+    assert edge_types == {"produced", "consumed"}
+    consumed = next(e for e in env["edges"] if e["edge_type"] == "consumed")
+    assert consumed["source_node_id"] == "node:eval_cal_record:upstream-1"
+    assert consumed["target_node_id"] == status.evaluation_node_id
+    assert consumed["causality_class"] == "derived"
+
+
 def test_emit_runtime_admission_links_back_to_evaluation():
     emitter, backend = _emitter()
     s1 = emitter.emit_evaluation_and_output(
