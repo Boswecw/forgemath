@@ -11,6 +11,8 @@
 | `app/services/execution_service.py` | bounded canonical execution for supported Phase 6 lanes, supported-lane contract validation, and active execution lineage control |
 | `app/services/projection_service.py` | governed projection/read-model composition over canonical truth |
 | `app/services/immutability.py` | session-level protection against payload mutation |
+| `app/lineage/emitter.py` | ForgeLineage producer: emits `forgemath_evaluation` + `forgemath_output` (+ optional `consumed` edge from the upstream eval-cal node) to DataForge-Local |
+| `app/lineage/spine_emit.py` | opt-in, non-blocking lineage emission for the Evaluation Spine run; discovers the upstream `eval_cal_record` and drives the emitter |
 | `app/models/governance.py` | versioned governance tables |
 | `app/models/evaluation.py` | canonical evaluation, lifecycle, and runtime-admission tables |
 | `app/database.py` | engine and session factory |
@@ -52,3 +54,4 @@
 - canonical runtime profiles reject non-deterministic admission
 - runtime-admission inspection derives operator-visible recovery posture and action when the bound runtime profile is degraded
 - determinism-sensitive migration packages must declare affected deterministic artifacts and bounded migration posture
+- Evaluation Spine lineage emission (`app/lineage/spine_emit.py`, on `evaluate_calibration_report_file`) is **opt-in and non-blocking**: it emits only when `FORGEMATH_LINEAGE_URL` is set, and any emission failure is logged while the evaluation still completes. It emits only ForgeMath's own lineage (`forgemath_evaluation`/`forgemath_output` + a `consumed` edge to the discovered upstream `eval_cal_record`); the `non_recalculation` posture of the output payload is unchanged — no downstream recomputation of upstream authority
