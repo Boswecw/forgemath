@@ -246,7 +246,11 @@ def evaluate_calibration_report_file(input_path: Path, output_dir: Path) -> dict
         report_payload=report_payload,
         output_payload=lane_ref_payload,
         output_artifact_path=str(output_path),
-        output_artifact_hash=payload_sha256(lane_ref_payload),
+        # Hash the bytes ACTUALLY written to disk (pretty-printed + trailing newline),
+        # not the compact canonical form — a consumer (FC's self-healing tick)
+        # sha256-verifies the artifact FILE before reading the gate, so a
+        # canonical-vs-file hash mismatch makes the gate read fail closed (no proposal).
+        output_artifact_hash="sha256:" + hashlib.sha256(output_path.read_bytes()).hexdigest(),
     )
     return {
         "artifact_family": "forgemath_lane_evaluation_ref",
