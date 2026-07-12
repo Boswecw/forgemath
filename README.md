@@ -1,4 +1,8 @@
-# ForgeMath
+# bds · ForgeMath
+
+> **System identity — bds family (Boswell Digital Solutions business system, local-systems tier).**
+> ForgeMath is the Forge ecosystem's canonical math and rule authority surface, operated as a business/backend local system under `ecosystem/local-systems`.
+> **Purpose:** canonical, deterministic math and rule-evaluation authority — governance registries, canonical evaluation persistence, and lifecycle-governed execution — for the Forge ecosystem.
 
 ForgeMath is the Forge ecosystem's canonical math and rule authority surface.
 
