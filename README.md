@@ -36,7 +36,9 @@ Current non-goals:
 
 Current documentation authority:
 - [doc/MATSYSTEM.md](doc/MATSYSTEM.md) is the assembled, canonical repo-truth reference (canonical artifacts carry the three-letter `MAT` designator)
-- `docs/*.md` files are retained as historical planning artifacts unless explicitly updated to current state
+- completed Phase 1–7 implementation plans are archived under `Drive/Forge/Plans/Implemented/forgemath`: https://drive.google.com/file/d/1OYXg7vOGjZmIiuaxl1d4nDK-_wgvsMfu/view
+- remaining `docs/*.md` files are active design references or historical context; canonical system truth stays in `doc/MATSYSTEM.md`
+- archive SHA-256: `f7c4769d3d37d09c82f7742c2e745db93f644eb3711f92923bae078a49d92090`
 
 ## Quick Start
 
