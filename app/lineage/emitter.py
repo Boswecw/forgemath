@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 def _ensure_sdk_on_path() -> None:
     here = Path(__file__).resolve()
     candidates = [
+        here.parents[2] / ".ci" / "forge_lineage" / "sdk",
         here.parents[4] / "contracts" / "forge_lineage" / "sdk",
         Path.home() / "Forge" / "ecosystem" / "contracts" / "forge_lineage" / "sdk",
     ]

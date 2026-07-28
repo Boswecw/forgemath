@@ -13,6 +13,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout pinned ForgeLineage SDK
+        uses: actions/checkout@v4
+        with:
+          repository: Boswell-Digital-Solutions/forge_lineage
+          ref: 6b478392f48e2de11515d5b3cd23862d56284fdd
+          path: .ci/forge_lineage
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -30,4 +37,6 @@ jobs:
         run: alembic upgrade head
 
       - name: Run tests
+        env:
+          PYTHONPATH: .ci/forge_lineage/sdk
         run: python -m pytest tests -q
