@@ -6,6 +6,7 @@ from pathlib import Path
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from urllib import error, request
 import uuid
@@ -109,8 +110,19 @@ def _request(method: str, url: str, payload: dict | None = None):
         return exc.code, parsed
 
 
+def _unlink_with_retry(path: Path) -> None:
+    for attempt in range(20):
+        try:
+            path.unlink(missing_ok=True)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.05)
+
+
 def _run_http_integration(seed_fn, assertion_fn):
-    db_path = Path(f"/tmp/forgemath-http-{uuid.uuid4().hex}.sqlite3")
+    db_path = Path(tempfile.gettempdir()) / f"forgemath-http-{uuid.uuid4().hex}.sqlite3"
     database_url, context = _seed_sqlite_database(db_path, seed_fn)
     process, base_url = _start_uvicorn(database_url)
     try:
@@ -122,8 +134,7 @@ def _run_http_integration(seed_fn, assertion_fn):
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
-        if db_path.exists():
-            db_path.unlink()
+        _unlink_with_retry(db_path)
 
 
 def test_manual_lane_evaluation_route_rejects_computed_canonical_truth():

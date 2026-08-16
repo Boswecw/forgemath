@@ -6,6 +6,13 @@
 
 ForgeMath is the Forge ecosystem's canonical math and rule authority surface.
 
+It has two distinct runtime entry points:
+
+- the FastAPI service for governance registries, canonical persistence, lifecycle, runtime admission, projections, and bounded execution;
+- the file-in/file-out Evaluation Spine CLI (`python -m app.evaluation_spine_cli`), with default-off, opt-in ForgeLineage emission to DataForge-Local.
+
+Forge_Command consumes the lightweight `python -m app.health_cli` producer probe. That command does not claim database or FastAPI readiness; use `python -m app.health_cli --readiness` against an existing migrated database for the explicit local readiness surface.
+
 Current implemented repo truth:
 - Phase 1 governance registries and immutable version sequencing
 - Phase 2 canonical evaluation persistence
@@ -29,7 +36,8 @@ Current hardening posture:
 - runtime admission inspection surfaces explicit recovery posture, action, and operator-review guidance when a bound runtime profile is missing, incomplete, non-deterministic, or retired
 
 Current non-goals:
-- full lane math engine beyond the bounded Phase 6 lane wave
+- execution beyond the three governed bounded lanes
+- arbitrary caller-supplied expression evaluation or general symbolic algebra
 - replay workers, stale-state automation, or queue processors
 - hybrid-gate execution rollout
 - projection persistence or downstream UI surfaces
@@ -49,5 +57,11 @@ pip install -r requirements.txt
 cp .env.example .env
 alembic upgrade head
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8011
-pytest
+python -m pytest tests -q
+python -m app.health_cli
+python -m app.health_cli --readiness
+bash doc/system/BUILD.sh
+bash doc/system/validate_snapshots.sh
 ```
+
+The complete lineage tests require the ForgeLineage SDK revision pinned by CI on `PYTHONPATH`. The Postgres schema invariant test skips unless `FORGEMATH_POSTGRES_TEST_URL` is configured.

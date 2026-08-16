@@ -1,8 +1,8 @@
 ## 6. Design System
 
 ForgeMath currently has no end-user UI inside this repo.
-Phase 1 through Phase 7 remain backend-only, so the design system surface is
-limited to JSON contracts, naming consistency, and documentation clarity.
+The repository remains backend-only, so the design system surface is limited
+to JSON contracts, naming consistency, and documentation clarity.
 
 ### 6.1 Current UI Posture
 

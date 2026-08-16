@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Assembles the compiled system reference (designation MAT).
+# Assembles the authored canonical system reference (designation MAT).
 # Fail-closed: missing structure, designation/output mismatch, or snapshot
 # validation failure aborts the build with BUILD_FAILED on stderr.
 

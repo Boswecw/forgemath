@@ -33,10 +33,26 @@ jobs:
 
       - name: Verify migrations apply (schema build surface)
         env:
-          FORGEMATH_DATABASE_URL: sqlite:///./ci_migrations.db
+          FORGEMATH_DATABASE_URL: sqlite:///${{ runner.temp }}/forgemath-ci.sqlite3
         run: alembic upgrade head
 
       - name: Run tests
         env:
           PYTHONPATH: .ci/forge_lineage/sdk
         run: python -m pytest tests -q
+
+      - name: Verify lightweight health CLI contract
+        run: |
+          python -m app.health_cli | python -c 'import json, sys; payload = json.load(sys.stdin); required = {"service", "status", "version", "role", "checks", "checked_at"}; assert set(payload) == required; assert payload["status"] == "ok"; assert payload["version"] != "unknown"; assert payload["checks"]["surface"] == "evaluation_spine_cli_imports"'
+
+      - name: Verify explicit readiness contract
+        env:
+          FORGEMATH_DATABASE_URL: sqlite:///${{ runner.temp }}/forgemath-ci.sqlite3
+        run: |
+          python -m app.health_cli --readiness | python -c 'import json, sys; payload = json.load(sys.stdin); assert payload["status"] == "ok"; assert payload["checks"]["surface"] == "service_readiness"; assert payload["checks"]["migration_head_alignment"] == "ok"; assert payload["checks"]["lineage_configuration"] == "disabled"; assert payload["checks"]["lineage_transport"] == "not_checked"'
+
+      - name: Build and validate canonical documentation
+        run: |
+          bash doc/system/BUILD.sh
+          bash doc/system/validate_snapshots.sh
+          git diff --exit-code -- doc/MATSYSTEM.md

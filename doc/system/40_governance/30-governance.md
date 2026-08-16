@@ -1,10 +1,14 @@
 # Governance
 
-**Document version:** 1.0 (bootstrap scaffold)
+Governed payload truth is append-only and versioned. Supersession closes prior
+truth while preserving history; only explicit lifecycle fields may change in
+place. Missing or incompatible bindings, retired or non-deterministic runtime
+profiles, and cross-lane relationships fail closed.
 
-Ownership, review, and change-authority boundaries.
+Computed canonical truth enters through the governed execution service.
+Manual evaluation ingest is limited to non-computed historical or audit
+records. Projections remain derived read models and never become source truth.
 
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+Formula, weight, threshold, rounding, quantization, and supported-lane changes
+require explicit mathematical governance and updated golden evidence. Caller-
+supplied expressions are prohibited.

@@ -1,10 +1,15 @@
-# Architecture
+# Architecture Surfaces
 
-**Document version:** 1.0 (bootstrap scaffold)
+ForgeMath exposes two distinct authority surfaces:
 
-High-level architecture, authority posture, and surface ownership.
+1. The FastAPI service routes governed registry writes and reads, manual
+   non-computed ingest, canonical bounded lane execution, lifecycle and
+   admission inspection, and projections through SQLAlchemy persistence.
+2. The Evaluation Spine CLI reads a calibration-report contract and writes a
+   deterministic ForgeMath contract artifact. It does not call the FastAPI
+   lane-execution route and does not expand the three registered API lanes.
 
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+The lightweight health CLI is a third operational interface, not a math lane.
+Its default mode checks only the Evaluation Spine CLI import surface for
+Forge_Command. Explicit `--readiness` mode inspects local service readiness
+without creating or migrating a database or contacting lineage transport.

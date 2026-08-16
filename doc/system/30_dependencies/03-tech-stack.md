@@ -17,5 +17,10 @@
 | Tool | Version | Purpose |
 |------|---------|---------|
 | pytest | `7.4.3` | Repo test runner |
-| httpx | `0.26.0` | FastAPI-compatible request tooling and dependency surface |
+| httpx | `0.27.2` | FastAPI-compatible request tooling and dependency surface |
+
+`pydantic` and `jsonschema` use bounded ranges rather than exact full-lock
+resolution. CI's clean dependency installation tests the resolved set, but a
+reproducible lock or constraints-file decision remains a separate dependency
+governance follow-up.
 

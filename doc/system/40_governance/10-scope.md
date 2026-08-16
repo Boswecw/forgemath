@@ -1,10 +1,11 @@
 # Scope
 
-**Document version:** 1.0 (bootstrap scaffold)
+In scope are the ForgeMath-owned governance registries, canonical evaluation
+records, lifecycle and runtime-admission evidence, read projections, bounded
+execution for the three registered lanes, the Evaluation Spine CLI contract,
+and ForgeMath-owned lineage emission.
 
-Scope and authority boundary of this documentation system.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+Out of scope are arbitrary expression execution, new lanes without separate
+governance approval, changes to canonical formulas or numerical semantics,
+downstream recomputation of upstream authority, deployment, external-service
+configuration, and changes to DataForge-Local or Forge_Command.
