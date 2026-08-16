@@ -69,8 +69,9 @@ Its authority is intentionally bounded. ForgeMath is not a helper library, a
 general policy engine, a symbolic-algebra service, or an arbitrary expression
 executor. Human-approved typed contracts and code define the supported math.
 
-The current FastAPI execution surface supports exactly three governed lanes:
-`verification_burden`, `recurrence_pressure`, and `exposure_factor`.
+The current FastAPI execution surface supports exactly five governed lanes:
+the numeric lanes `verification_burden`, `recurrence_pressure`,
+`exposure_factor`, and `priority_score`, plus the `reviewability` hybrid gate.
 
 ---
 
@@ -83,7 +84,7 @@ ForgeMath exposes two distinct authority surfaces:
    admission inspection, and projections through SQLAlchemy persistence.
 2. The Evaluation Spine CLI reads a calibration-report contract and writes a
    deterministic ForgeMath contract artifact. It does not call the FastAPI
-   lane-execution route and does not expand the three registered API lanes.
+   lane-execution route and does not expand the five registered API lanes.
 
 The lightweight health CLI is a third operational interface, not a math lane.
 Its default mode checks only the Evaluation Spine CLI import surface for
@@ -270,8 +271,15 @@ through `POST /lane-executions`.
 |-------|--------|------|
 | Bounded canonical execution | `POST` | `/lane-executions` |
 
-This route supports exactly `verification_burden`, `recurrence_pressure`, and
-`exposure_factor`. It does not execute the Evaluation Spine CLI lane contract
+This route supports exactly the numeric lanes `verification_burden`,
+`recurrence_pressure`, `exposure_factor`, and `priority_score`, plus the
+`reviewability` hybrid gate. Priority Score uses the governed weighted formula
+over `RP`, `VB`, `EF`, `RGR`, complemented `CE` and `GV`, the binary control-gap
+indicator, and subtractive `IG`, then clamps to `[0,1]`. Reviewability emits a
+numeric supporting posture and a non-scalar classified/gated posture: any hard
+evidence, lineage, compatibility, replay, or invalid-artifact issue emits
+`blocked`; a degraded-only issue emits `computed_degraded`; otherwise it emits
+`computed_strict`. It does not execute the Evaluation Spine CLI lane contract
 or caller-supplied expressions.
 
 ### 8.5 Lifecycle Routes
@@ -363,7 +371,7 @@ contracts.
 | `app/services/evaluation_service.py` | canonical evaluation persistence, manual-ingest boundary enforcement, canonical artifact hashing, persistence-level active execution exclusivity, trace, replay queue, and incident persistence |
 | `app/services/lifecycle_service.py` | replay/stale/recomputation validation, supersession lifecycle control, lineage reads, and cycle/temporal-order hardening |
 | `app/services/runtime_admission_service.py` | deterministic runtime validation, runtime certificate derivation, runtime admission inspection, and runtime-recovery posture derivation |
-| `app/services/execution_service.py` | bounded canonical execution for the three supported lanes, supported-lane contract validation, and active execution lineage control |
+| `app/services/execution_service.py` | bounded canonical execution for the five supported lanes, typed formula and gate-contract validation, and active execution lineage control |
 | `app/services/projection_service.py` | governed projection/read-model composition over canonical truth |
 | `app/services/immutability.py` | session-level protection against payload mutation |
 | `app/lineage/emitter.py` | ForgeLineage producer: emits `forgemath_evaluation` + `forgemath_output` (+ optional `consumed` edge from the upstream eval-cal node) to DataForge-Local |
@@ -383,14 +391,18 @@ contracts.
 - canonical admission fails closed when runtime profile is retired or non-deterministic
 - manual ingest may not persist computed canonical truth, caller-supplied output bundles, or caller-supplied output hashes
 - canonical execution mode is server-owned on the execution route and may not be caller-supplied
-- raw_output_hash is derived from the persisted canonical output/factor/trace artifact bundle
+- raw_output_hash is derived from the persisted canonical output/factor/trace artifact bundle for computed strict or degraded truth; blocked hybrid-gate evidence intentionally has no canonical raw-output hash
 - trace bundle hashing excludes storage ids so identical reruns preserve stable canonical artifact hashes
 - parameter, threshold, and policy bindings must match the evaluation lane when those records declare a lane binding
 - optional prior and decay compatibility bindings must resolve when present
 - canonical numeric output/factor values persist as deterministic decimal strings rather than floats
 - output field names and factor names are unique per evaluation
 - output and factor DTOs fail closed when computed rows are semantically incomplete
-- bounded execution supports only `verification_burden`, `recurrence_pressure`, and `exposure_factor` in the `canonical_numeric` lane family
+- bounded execution supports only `verification_burden`, `recurrence_pressure`, `exposure_factor`, and `priority_score` in the `canonical_numeric` lane family, plus `reviewability` in the `hybrid_gate` lane family
+- Priority Score admits only bounded `[0,1]` inputs plus a binary control-gap indicator and applies the governed weighted/complemented/subtractive formula using deterministic `Decimal` arithmetic
+- Reviewability admits only binary issue flags, computes the governed multiplicative supporting score, and emits a gated posture plus an ordered reason set
+- Reviewability hard evidence, lineage, compatibility, replay, or invalid-artifact flags emit `blocked` with audit-readable replay; a degraded-only flag emits `computed_degraded`; no issue flags emit `computed_strict`
+- blocked Reviewability evaluations remain append-only audit evidence but do not occupy the unique active canonical execution key
 - bounded execution fails closed when variable, parameter, threshold, policy, runtime, or input bindings are missing or inactive
 - bounded execution fails closed when supported parameter payloads or threshold topologies violate the bounded execution contract
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables
@@ -567,7 +579,9 @@ No route silently degrades a missing or incompatible binding into a success path
 
 ### 13.6 Execution Failure Posture
 
-- lanes outside `verification_burden`, `recurrence_pressure`, and `exposure_factor` fail execution with `400`
+- lanes outside `verification_burden`, `recurrence_pressure`, `exposure_factor`, `priority_score`, and `reviewability` fail execution with `400`
+- `reviewability` registered with any family other than `hybrid_gate` fails execution with `400`
+- Priority Score inputs outside `[0,1]` and Reviewability issue flags outside boolean or `0/1` semantics fail execution with `400`
 - missing required input variables fail execution with `400`
 - missing governance bindings fail execution with `404`
 - runtime profiles outside the supported deterministic execution substrate fail execution with `400`
@@ -637,7 +651,7 @@ to JSON contracts, naming consistency, and documentation clarity.
 
 In scope are the ForgeMath-owned governance registries, canonical evaluation
 records, lifecycle and runtime-admission evidence, read projections, bounded
-execution for the three registered lanes, the Evaluation Spine CLI contract,
+execution for the five registered lanes, the Evaluation Spine CLI contract,
 and ForgeMath-owned lineage emission.
 
 Out of scope are arbitrary expression execution, new lanes without separate
@@ -671,7 +685,7 @@ evidence, governed package contents, provenance, redaction posture, signature
 claims, and verification policy. They are not imported by `app/`, exposed by
 an API, persisted in canonical tables, or used to activate executable math.
 
-The schemas fail closed to the three existing lanes, canonical decimal strings,
+The schemas fail closed to the five registered lanes, canonical decimal strings,
 complete governed artifact roles, `executable=false`, and
 `arbitrary_expression_allowed=false`. The signature fixture is explicitly
 unverified. Runtime adoption requires separate governance for canonical JSON,
@@ -749,6 +763,7 @@ instructions. Merge and deployment require separate authority.
 | `tests/test_phase6_execution.py` | Supported lane execution happy paths, repeatability/hash-stability checks, and fail-closed missing-binding, missing-input, unsupported-lane, invalid-parameter, invalid-threshold, runtime-profile, and variable-registry insufficient-coverage execution checks |
 | `tests/test_phase7_hardening.py` | Persistence-level active canonical execution exclusivity, determinism-sensitive migration package validation, runtime-recovery inspection, and supersession hardening checks |
 | `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
+| `tests/test_priority_reviewability_lanes.py` | Exact Priority Score formula/factor/trace pinning; Reviewability strict, degraded, and blocked posture vectors; family, range, and binary-input fail-closed checks |
 | `tests/test_property_invariants.py` | Hypothesis-generated decimal serialization, formula bounds and monotonicity, replay posture, lifecycle severity, and stateful append-only supersession-chain invariants |
 | `tests/test_research_contracts.py` | JSON Schema meta-validation, valid receipt/package fixtures, fail-closed research boundaries, and cross-artifact content-address checks |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
@@ -794,6 +809,10 @@ It also validates the hardening slices for:
 - per-factor golden-vector pinning (raw, normalized, weighted values)
 - trace summary format stability (_decimal_to_str output for known inputs)
 - _clamp_unit saturation at 1.0 when exposure_factor arithmetic exceeds unit ceiling
+- exact Priority Score complement, control-gap, subtractive-improvement, clamp, factor, and trace semantics
+- Reviewability numeric posture plus strict/degraded/blocked hybrid-gate status, replay, reason-set, and no-hash-on-blocked semantics
+- property-generated Priority Score inputs preserve bounds, determinism, and exact factor recomposition
+- property-generated Reviewability masks cover all hard-gate/degraded posture combinations and preserve multiplicative-score semantics
 - variable registry insufficient coverage rejection (registry present, variables missing)
 - stale_input_invalidated positive transition path with input_bundle_invalidated evidence
 - stale_upstream_changed positive transition path when upstream registry is superseded
@@ -855,8 +874,8 @@ not implemented. Current projections are intentional ephemeral read models in
 - runtime admission evolution beyond bounded deterministic validation and persisted evidence
 - replay workers and queue processors
 - stale-state automation engine
-- execution expansion beyond `verification_burden`, `recurrence_pressure`, and `exposure_factor`
-- hybrid gate execution and broader multi-lane orchestration
+- execution expansion beyond `verification_burden`, `recurrence_pressure`, `exposure_factor`, `priority_score`, and `reviewability`
+- broader multi-lane orchestration beyond the registered lane-local execution contracts
 - broader database-level exclusion or partitioning strategies if future execution expansion outgrows the current unique active execution key
 - a locked or constraints-based resolution for the currently ranged Pydantic and JSON Schema dependencies
 - operational deployment evidence, branch-protection policy, and external-service readiness, which remain outside this repository change

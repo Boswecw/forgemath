@@ -11,5 +11,6 @@ Its authority is intentionally bounded. ForgeMath is not a helper library, a
 general policy engine, a symbolic-algebra service, or an arbitrary expression
 executor. Human-approved typed contracts and code define the supported math.
 
-The current FastAPI execution surface supports exactly three governed lanes:
-`verification_burden`, `recurrence_pressure`, and `exposure_factor`.
+The current FastAPI execution surface supports exactly five governed lanes:
+the numeric lanes `verification_burden`, `recurrence_pressure`,
+`exposure_factor`, and `priority_score`, plus the `reviewability` hybrid gate.

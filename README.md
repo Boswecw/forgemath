@@ -19,7 +19,7 @@ Current implemented repo truth:
 - Phase 3 lifecycle governance for replay, stale posture, recomputation, and supersession lineage
 - Phase 4 deterministic runtime admission persistence and validation
 - Phase 5 projection DTO and read-model inspection surfaces
-- Phase 6 bounded canonical execution for `verification_burden`, `recurrence_pressure`, and `exposure_factor`
+- bounded canonical execution for numeric lanes `verification_burden`, `recurrence_pressure`, `exposure_factor`, and `priority_score`, plus the `reviewability` hybrid gate
 - authority-boundary and canonical numeric hardening for manual ingest, derived output hashes, and active execution lineage control
 - Phase 7 durability and lifecycle-control hardening for persistence-level active canonical execution exclusivity, determinism-sensitive migration metadata, runtime recovery posture inspection, and stricter supersession safety
 
@@ -36,10 +36,10 @@ Current hardening posture:
 - runtime admission inspection surfaces explicit recovery posture, action, and operator-review guidance when a bound runtime profile is missing, incomplete, non-deterministic, or retired
 
 Current non-goals:
-- execution beyond the three governed bounded lanes
+- execution beyond the five governed bounded lanes
 - arbitrary caller-supplied expression evaluation or general symbolic algebra
 - replay workers, stale-state automation, or queue processors
-- hybrid-gate execution rollout
+- broader multi-lane orchestration beyond the registered lane-local execution contracts
 - projection persistence or downstream UI surfaces
 
 Current documentation authority:

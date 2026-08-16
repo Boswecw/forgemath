@@ -7,7 +7,7 @@ ForgeMath exposes two distinct authority surfaces:
    admission inspection, and projections through SQLAlchemy persistence.
 2. The Evaluation Spine CLI reads a calibration-report contract and writes a
    deterministic ForgeMath contract artifact. It does not call the FastAPI
-   lane-execution route and does not expand the three registered API lanes.
+   lane-execution route and does not expand the five registered API lanes.
 
 The lightweight health CLI is a third operational interface, not a math lane.
 Its default mode checks only the Evaluation Spine CLI import surface for

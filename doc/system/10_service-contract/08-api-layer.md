@@ -47,8 +47,15 @@ through `POST /lane-executions`.
 |-------|--------|------|
 | Bounded canonical execution | `POST` | `/lane-executions` |
 
-This route supports exactly `verification_burden`, `recurrence_pressure`, and
-`exposure_factor`. It does not execute the Evaluation Spine CLI lane contract
+This route supports exactly the numeric lanes `verification_burden`,
+`recurrence_pressure`, `exposure_factor`, and `priority_score`, plus the
+`reviewability` hybrid gate. Priority Score uses the governed weighted formula
+over `RP`, `VB`, `EF`, `RGR`, complemented `CE` and `GV`, the binary control-gap
+indicator, and subtractive `IG`, then clamps to `[0,1]`. Reviewability emits a
+numeric supporting posture and a non-scalar classified/gated posture: any hard
+evidence, lineage, compatibility, replay, or invalid-artifact issue emits
+`blocked`; a degraded-only issue emits `computed_degraded`; otherwise it emits
+`computed_strict`. It does not execute the Evaluation Spine CLI lane contract
 or caller-supplied expressions.
 
 ### 8.5 Lifecycle Routes

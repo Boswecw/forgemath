@@ -14,6 +14,7 @@
 | `tests/test_phase6_execution.py` | Supported lane execution happy paths, repeatability/hash-stability checks, and fail-closed missing-binding, missing-input, unsupported-lane, invalid-parameter, invalid-threshold, runtime-profile, and variable-registry insufficient-coverage execution checks |
 | `tests/test_phase7_hardening.py` | Persistence-level active canonical execution exclusivity, determinism-sensitive migration package validation, runtime-recovery inspection, and supersession hardening checks |
 | `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
+| `tests/test_priority_reviewability_lanes.py` | Exact Priority Score formula/factor/trace pinning; Reviewability strict, degraded, and blocked posture vectors; family, range, and binary-input fail-closed checks |
 | `tests/test_property_invariants.py` | Hypothesis-generated decimal serialization, formula bounds and monotonicity, replay posture, lifecycle severity, and stateful append-only supersession-chain invariants |
 | `tests/test_research_contracts.py` | JSON Schema meta-validation, valid receipt/package fixtures, fail-closed research boundaries, and cross-artifact content-address checks |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
@@ -59,6 +60,10 @@ It also validates the hardening slices for:
 - per-factor golden-vector pinning (raw, normalized, weighted values)
 - trace summary format stability (_decimal_to_str output for known inputs)
 - _clamp_unit saturation at 1.0 when exposure_factor arithmetic exceeds unit ceiling
+- exact Priority Score complement, control-gap, subtractive-improvement, clamp, factor, and trace semantics
+- Reviewability numeric posture plus strict/degraded/blocked hybrid-gate status, replay, reason-set, and no-hash-on-blocked semantics
+- property-generated Priority Score inputs preserve bounds, determinism, and exact factor recomposition
+- property-generated Reviewability masks cover all hard-gate/degraded posture combinations and preserve multiplicative-score semantics
 - variable registry insufficient coverage rejection (registry present, variables missing)
 - stale_input_invalidated positive transition path with input_bundle_invalidated evidence
 - stale_upstream_changed positive transition path when upstream registry is superseded

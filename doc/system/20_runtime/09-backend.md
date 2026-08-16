@@ -8,7 +8,7 @@
 | `app/services/evaluation_service.py` | canonical evaluation persistence, manual-ingest boundary enforcement, canonical artifact hashing, persistence-level active execution exclusivity, trace, replay queue, and incident persistence |
 | `app/services/lifecycle_service.py` | replay/stale/recomputation validation, supersession lifecycle control, lineage reads, and cycle/temporal-order hardening |
 | `app/services/runtime_admission_service.py` | deterministic runtime validation, runtime certificate derivation, runtime admission inspection, and runtime-recovery posture derivation |
-| `app/services/execution_service.py` | bounded canonical execution for the three supported lanes, supported-lane contract validation, and active execution lineage control |
+| `app/services/execution_service.py` | bounded canonical execution for the five supported lanes, typed formula and gate-contract validation, and active execution lineage control |
 | `app/services/projection_service.py` | governed projection/read-model composition over canonical truth |
 | `app/services/immutability.py` | session-level protection against payload mutation |
 | `app/lineage/emitter.py` | ForgeLineage producer: emits `forgemath_evaluation` + `forgemath_output` (+ optional `consumed` edge from the upstream eval-cal node) to DataForge-Local |
@@ -28,14 +28,18 @@
 - canonical admission fails closed when runtime profile is retired or non-deterministic
 - manual ingest may not persist computed canonical truth, caller-supplied output bundles, or caller-supplied output hashes
 - canonical execution mode is server-owned on the execution route and may not be caller-supplied
-- raw_output_hash is derived from the persisted canonical output/factor/trace artifact bundle
+- raw_output_hash is derived from the persisted canonical output/factor/trace artifact bundle for computed strict or degraded truth; blocked hybrid-gate evidence intentionally has no canonical raw-output hash
 - trace bundle hashing excludes storage ids so identical reruns preserve stable canonical artifact hashes
 - parameter, threshold, and policy bindings must match the evaluation lane when those records declare a lane binding
 - optional prior and decay compatibility bindings must resolve when present
 - canonical numeric output/factor values persist as deterministic decimal strings rather than floats
 - output field names and factor names are unique per evaluation
 - output and factor DTOs fail closed when computed rows are semantically incomplete
-- bounded execution supports only `verification_burden`, `recurrence_pressure`, and `exposure_factor` in the `canonical_numeric` lane family
+- bounded execution supports only `verification_burden`, `recurrence_pressure`, `exposure_factor`, and `priority_score` in the `canonical_numeric` lane family, plus `reviewability` in the `hybrid_gate` lane family
+- Priority Score admits only bounded `[0,1]` inputs plus a binary control-gap indicator and applies the governed weighted/complemented/subtractive formula using deterministic `Decimal` arithmetic
+- Reviewability admits only binary issue flags, computes the governed multiplicative supporting score, and emits a gated posture plus an ordered reason set
+- Reviewability hard evidence, lineage, compatibility, replay, or invalid-artifact flags emit `blocked` with audit-readable replay; a degraded-only flag emits `computed_degraded`; no issue flags emit `computed_strict`
+- blocked Reviewability evaluations remain append-only audit evidence but do not occupy the unique active canonical execution key
 - bounded execution fails closed when variable, parameter, threshold, policy, runtime, or input bindings are missing or inactive
 - bounded execution fails closed when supported parameter payloads or threshold topologies violate the bounded execution contract
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables

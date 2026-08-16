@@ -53,7 +53,13 @@
       "properties": {
         "lane_evaluation_id": { "type": "string", "minLength": 1, "maxLength": 36 },
         "lane_id": {
-          "enum": ["verification_burden", "recurrence_pressure", "exposure_factor"]
+          "enum": [
+            "verification_burden",
+            "recurrence_pressure",
+            "exposure_factor",
+            "priority_score",
+            "reviewability"
+          ]
         },
         "lane_spec_version": { "type": "integer", "minimum": 1 },
         "runtime_profile_id": { "type": "string", "minLength": 1, "maxLength": 255 },

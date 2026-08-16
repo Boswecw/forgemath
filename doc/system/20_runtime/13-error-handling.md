@@ -40,7 +40,9 @@ No route silently degrades a missing or incompatible binding into a success path
 
 ### 13.6 Execution Failure Posture
 
-- lanes outside `verification_burden`, `recurrence_pressure`, and `exposure_factor` fail execution with `400`
+- lanes outside `verification_burden`, `recurrence_pressure`, `exposure_factor`, `priority_score`, and `reviewability` fail execution with `400`
+- `reviewability` registered with any family other than `hybrid_gate` fails execution with `400`
+- Priority Score inputs outside `[0,1]` and Reviewability issue flags outside boolean or `0/1` semantics fail execution with `400`
 - missing required input variables fail execution with `400`
 - missing governance bindings fail execution with `404`
 - runtime profiles outside the supported deterministic execution substrate fail execution with `400`

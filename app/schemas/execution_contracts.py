@@ -182,3 +182,45 @@ class ExposureFactorCoefficientContract(ExecutionContractModel):
 
 class ExposureFactorParameterContract(ExecutionContractModel):
     coefficients: ExposureFactorCoefficientContract
+
+
+class PriorityScoreWeightsContract(ExecutionContractModel):
+    lambda_1: Decimal
+    lambda_2: Decimal
+    lambda_3: Decimal
+    lambda_4: Decimal
+    lambda_5: Decimal
+    lambda_6: Decimal
+    lambda_7: Decimal
+    lambda_8: Decimal
+
+    @model_validator(mode="after")
+    def validate_weights(self) -> "PriorityScoreWeightsContract":
+        values = self.model_dump(mode="python")
+        if any(value < ZERO or value > ONE for value in values.values()):
+            raise ValueError("priority score weights must stay within [0,1].")
+        return self
+
+
+class PriorityScoreParameterContract(ExecutionContractModel):
+    weights: PriorityScoreWeightsContract
+
+
+class ReviewabilityCoefficientContract(ExecutionContractModel):
+    beta_evidence: Decimal
+    beta_lineage: Decimal
+    beta_compat: Decimal
+    beta_replay: Decimal
+    beta_degraded: Decimal
+    beta_invalid: Decimal
+
+    @model_validator(mode="after")
+    def validate_coefficients(self) -> "ReviewabilityCoefficientContract":
+        values = self.model_dump(mode="python")
+        if any(value < ZERO or value > ONE for value in values.values()):
+            raise ValueError("reviewability coefficients must stay within [0,1].")
+        return self
+
+
+class ReviewabilityParameterContract(ExecutionContractModel):
+    coefficients: ReviewabilityCoefficientContract
