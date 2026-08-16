@@ -12,6 +12,7 @@ from app.enums import (
     LaneFamily,
     OutputPosture,
     PolicyBundleKind,
+    RecomputationAction,
     ReplayState,
     ResultStatus,
     StaleState,
@@ -30,7 +31,9 @@ from app.schemas.execution import LaneExecutionCreate, LaneExecutionResultRead
 from app.schemas.execution_contracts import (
     ExposureFactorParameterContract,
     LaneSpecPayloadContract,
+    PriorityScoreParameterContract,
     RecurrencePressureParameterContract,
+    ReviewabilityParameterContract,
     ThresholdSetPayloadContract,
     VariableRegistryPayloadContract,
     VerificationBurdenParameterContract,
@@ -54,6 +57,8 @@ SUPPORTED_LANES = frozenset(
         "verification_burden",
         "recurrence_pressure",
         "exposure_factor",
+        "priority_score",
+        "reviewability",
     }
 )
 
@@ -107,6 +112,12 @@ class DerivedLaneArtifacts:
     outputs: list[LaneOutputValueCreate]
     factors: list[LaneFactorValueCreate]
     trace_events: list[TraceEventCreate]
+    result_status: ResultStatus = ResultStatus.COMPUTED_STRICT
+    replay_state: ReplayState | None = None
+    recomputation_action: RecomputationAction = RecomputationAction.NO_RECOMPUTE_NEEDED
+    lifecycle_reason_code: str = "phase6_execution_created"
+    lifecycle_reason_detail: str = "Canonical lane execution persisted through the bounded Phase 6 substrate."
+
 
 def _decimal_to_str(value: Decimal) -> str:
     normalized = value.normalize()
@@ -129,6 +140,13 @@ def _clamp_unit(value: Decimal) -> Decimal:
     if value > ONE:
         return ONE
     return value
+
+
+def _unit_decimal(value: Any, label: str) -> Decimal:
+    decimal_value = _decimal(value, label)
+    if decimal_value < ZERO or decimal_value > ONE:
+        raise GovernanceValidationError(f"{label} must stay within [0,1].")
+    return decimal_value
 
 
 def _cap_norm(value: Decimal, cap: Decimal) -> Decimal:
@@ -172,6 +190,10 @@ def _require_supported_lane(lane_id: str) -> None:
         raise GovernanceValidationError(
             f"lane_id {lane_id} is not supported by the bounded Phase 6 execution substrate."
         )
+
+
+def _expected_lane_family(lane_id: str) -> LaneFamily:
+    return LaneFamily.HYBRID_GATE if lane_id == "reviewability" else LaneFamily.CANONICAL_NUMERIC
 
 
 def _validate_phase6_runtime_profile(runtime_profile: Any) -> None:
@@ -228,11 +250,15 @@ def _load_parameter_contract(lane_id: str, parameter_set: Any) -> (
     VerificationBurdenParameterContract
     | RecurrencePressureParameterContract
     | ExposureFactorParameterContract
+    | PriorityScoreParameterContract
+    | ReviewabilityParameterContract
 ):
     contract_type: type[
         VerificationBurdenParameterContract
         | RecurrencePressureParameterContract
         | ExposureFactorParameterContract
+        | PriorityScoreParameterContract
+        | ReviewabilityParameterContract
     ]
     if lane_id == "verification_burden":
         contract_type = VerificationBurdenParameterContract
@@ -240,6 +266,10 @@ def _load_parameter_contract(lane_id: str, parameter_set: Any) -> (
         contract_type = RecurrencePressureParameterContract
     elif lane_id == "exposure_factor":
         contract_type = ExposureFactorParameterContract
+    elif lane_id == "priority_score":
+        contract_type = PriorityScoreParameterContract
+    elif lane_id == "reviewability":
+        contract_type = ReviewabilityParameterContract
     else:
         raise GovernanceValidationError(f"lane_id {lane_id} is not supported by the bounded Phase 6 execution substrate.")
     try:
@@ -277,6 +307,17 @@ def _required_variables_for_lane(lane_id: str) -> tuple[str, ...]:
             "cross_system_flag",
             "local_cloud_boundary_flag",
             "severity_band",
+        )
+    if lane_id == "priority_score":
+        return ("RP", "VB", "EF", "RGR", "CE", "GV", "control_gap_present", "IG")
+    if lane_id == "reviewability":
+        return (
+            "m_evidence",
+            "m_lineage",
+            "m_compat",
+            "m_replay",
+            "m_degraded",
+            "m_invalid",
         )
     raise GovernanceValidationError(f"Unsupported lane_id {lane_id}.")
 
@@ -592,12 +633,182 @@ def _derive_exposure_factor(
     )
 
 
+def _derive_priority_score(
+    parameter_set: Any,
+    threshold_set: Any,
+    input_values: dict[str, Any],
+) -> DerivedLaneArtifacts:
+    parameter_contract = _load_parameter_contract("priority_score", parameter_set)
+    weights = parameter_contract.weights
+
+    with localcontext(DECIMAL_CONTEXT):
+        configured_factors = [
+            ("RP", "lambda_1", False, False),
+            ("VB", "lambda_2", False, False),
+            ("EF", "lambda_3", False, False),
+            ("RGR", "lambda_4", False, False),
+            ("CE", "lambda_5", True, False),
+            ("GV", "lambda_6", True, False),
+            ("control_gap_present", "lambda_7", False, False),
+            ("IG", "lambda_8", False, True),
+        ]
+        factors: list[DerivedFactor] = []
+        total = ZERO
+        for factor_name, weight_name, complement, subtract in configured_factors:
+            raw_value = (
+                _binary_flag(input_values[factor_name], factor_name)
+                if factor_name == "control_gap_present"
+                else _unit_decimal(input_values[factor_name], factor_name)
+            )
+            normalized_value = ONE - raw_value if complement else raw_value
+            weighted_value = normalized_value * getattr(weights, weight_name)
+            if subtract:
+                weighted_value = -weighted_value
+            total += weighted_value
+            transform = "complemented" if complement else "admitted"
+            operation = "subtracted" if subtract else "added"
+            factors.append(
+                DerivedFactor(
+                    factor_name=factor_name,
+                    raw_value=raw_value,
+                    normalized_value=normalized_value,
+                    weighted_value=weighted_value,
+                    provenance_class=(
+                        "input_bundle_inline_flag"
+                        if factor_name == "control_gap_present"
+                        else "input_bundle_inline_value"
+                    ),
+                    volatility_class=(
+                        "binary_flag" if factor_name == "control_gap_present" else "bounded_score"
+                    ),
+                    trace_summary=(
+                        f"Factor {factor_name} {transform} as {_decimal_to_str(normalized_value)} "
+                        f"and {operation} with contribution {_decimal_to_str(weighted_value)}."
+                    ),
+                )
+            )
+        score = _clamp_unit(total)
+    band_label = _resolve_band_label(score, threshold_set)
+    return _build_lane_artifacts(
+        lane_id="priority_score",
+        score=score,
+        band_label=band_label,
+        factors=factors,
+    )
+
+
+def _derive_reviewability(
+    parameter_set: Any,
+    threshold_set: Any,
+    input_values: dict[str, Any],
+) -> DerivedLaneArtifacts:
+    parameter_contract = _load_parameter_contract("reviewability", parameter_set)
+    coefficients = parameter_contract.coefficients
+    configured_flags = [
+        ("m_evidence", "beta_evidence", "required_evidence_missing", True),
+        ("m_lineage", "beta_lineage", "lineage_broken", True),
+        ("m_compat", "beta_compat", "compatibility_unresolved", True),
+        ("m_replay", "beta_replay", "replay_minimum_incomplete", True),
+        ("m_degraded", "beta_degraded", "degraded_evidence_posture", False),
+        ("m_invalid", "beta_invalid", "critical_canonical_artifact_invalidated", True),
+    ]
+
+    with localcontext(DECIMAL_CONTEXT):
+        factors: list[DerivedFactor] = []
+        product = ONE
+        reasons: list[str] = []
+        hard_gate_present = False
+        degraded_present = False
+        for factor_name, coefficient_name, reason_code, is_hard_gate in configured_flags:
+            raw_value = _binary_flag(input_values[factor_name], factor_name)
+            weighted_value = getattr(coefficients, coefficient_name) * raw_value
+            product *= ONE - weighted_value
+            if raw_value == ONE:
+                reasons.append(reason_code)
+                hard_gate_present = hard_gate_present or is_hard_gate
+                degraded_present = degraded_present or factor_name == "m_degraded"
+            factors.append(
+                DerivedFactor(
+                    factor_name=factor_name,
+                    raw_value=raw_value,
+                    normalized_value=raw_value,
+                    weighted_value=weighted_value,
+                    provenance_class="input_bundle_inline_flag",
+                    volatility_class="binary_issue_flag",
+                    trace_summary=(
+                        f"Issue flag {factor_name} admitted as {_decimal_to_str(raw_value)} "
+                        f"with multiplicative penalty coefficient {_decimal_to_str(weighted_value)}."
+                    ),
+                )
+            )
+        score = _clamp_unit(product)
+
+    if hard_gate_present:
+        result_status = ResultStatus.BLOCKED
+        posture = "blocked"
+        replay_state = ReplayState.AUDIT_READABLE_ONLY
+        recomputation_action = RecomputationAction.PRESERVE_AS_AUDIT_ONLY
+    elif degraded_present:
+        result_status = ResultStatus.COMPUTED_DEGRADED
+        posture = "degraded"
+        replay_state = None
+        recomputation_action = RecomputationAction.OPTIONAL_RECOMPUTE
+    else:
+        result_status = ResultStatus.COMPUTED_STRICT
+        posture = "reviewable"
+        replay_state = None
+        recomputation_action = RecomputationAction.NO_RECOMPUTE_NEEDED
+
+    band_label = _resolve_band_label(score, threshold_set)
+    reason_set = ",".join(reasons) if reasons else "none"
+    return _build_lane_artifacts(
+        lane_id="reviewability",
+        score=score,
+        band_label=band_label,
+        factors=factors,
+        additional_outputs=[
+            LaneOutputValueCreate(
+                output_field_name="reviewability_posture",
+                output_posture=OutputPosture.GATED,
+                enum_value=posture,
+                value_range_class=posture,
+                is_primary_output=False,
+            ),
+            LaneOutputValueCreate(
+                output_field_name="reviewability_reason_set",
+                output_posture=OutputPosture.CLASSIFIED,
+                text_value=reason_set,
+                value_range_class=posture,
+                is_primary_output=False,
+            ),
+        ],
+        result_status=result_status,
+        replay_state=replay_state,
+        recomputation_action=recomputation_action,
+        lifecycle_reason_code=f"reviewability_{posture}",
+        lifecycle_reason_detail=(
+            f"Reviewability hybrid-gate posture is {posture}; reason_set={reason_set}."
+        ),
+        posture_trace_summary=(
+            f"Hybrid gate emitted result_status={result_status.value}, posture={posture}, "
+            f"reason_set={reason_set}."
+        ),
+    )
+
+
 def _build_lane_artifacts(
     *,
     lane_id: str,
     score: Decimal,
     band_label: str,
     factors: list[DerivedFactor],
+    additional_outputs: list[LaneOutputValueCreate] | None = None,
+    result_status: ResultStatus = ResultStatus.COMPUTED_STRICT,
+    replay_state: ReplayState | None = None,
+    recomputation_action: RecomputationAction = RecomputationAction.NO_RECOMPUTE_NEEDED,
+    lifecycle_reason_code: str = "phase6_execution_created",
+    lifecycle_reason_detail: str = "Canonical lane execution persisted through the bounded Phase 6 substrate.",
+    posture_trace_summary: str | None = None,
 ) -> DerivedLaneArtifacts:
     score = _canonical_output_decimal(score)
     raw_output_field_name = f"{lane_id}_raw"
@@ -619,6 +830,7 @@ def _build_lane_artifacts(
             is_primary_output=False,
         ),
     ]
+    outputs.extend(additional_outputs or [])
 
     trace_events = [
         _trace_event(
@@ -645,6 +857,15 @@ def _build_lane_artifacts(
             f"Primary raw output {_decimal_to_str(score)} classified into band {band_label}.",
         )
     )
+    if posture_trace_summary is not None:
+        trace_events.append(
+            _trace_event(
+                len(trace_events),
+                "posture_derived",
+                f"trace://lane/{lane_id}/posture",
+                posture_trace_summary,
+            )
+        )
 
     return DerivedLaneArtifacts(
         raw_score=score,
@@ -652,6 +873,11 @@ def _build_lane_artifacts(
         outputs=outputs,
         factors=[_factor_create(factor) for factor in factors],
         trace_events=trace_events,
+        result_status=result_status,
+        replay_state=replay_state,
+        recomputation_action=recomputation_action,
+        lifecycle_reason_code=lifecycle_reason_code,
+        lifecycle_reason_detail=lifecycle_reason_detail,
     )
 
 
@@ -667,6 +893,10 @@ def _derive_lane_artifacts(
         return _derive_recurrence_pressure(parameter_set, threshold_set, input_values)
     if lane_id == "exposure_factor":
         return _derive_exposure_factor(parameter_set, threshold_set, input_values)
+    if lane_id == "priority_score":
+        return _derive_priority_score(parameter_set, threshold_set, input_values)
+    if lane_id == "reviewability":
+        return _derive_reviewability(parameter_set, threshold_set, input_values)
     raise GovernanceValidationError(
         f"lane_id {lane_id} is not supported by the bounded Phase 6 execution substrate."
     )
@@ -693,6 +923,12 @@ def _active_canonical_execution_conflict(
             LaneEvaluation.input_bundle_id == input_bundle_id,
             LaneEvaluation.compatibility_tuple_hash == compatibility_tuple_hash,
             LaneEvaluation.execution_mode == CANONICAL_EXECUTION_MODE,
+            LaneEvaluation.result_status.in_(
+                (
+                    ResultStatus.COMPUTED_STRICT.value,
+                    ResultStatus.COMPUTED_DEGRADED.value,
+                )
+            ),
             LaneEvaluation.superseded_by_evaluation_id.is_(None),
             LaneEvaluation.scope_id.is_(scope_id) if scope_id is None else LaneEvaluation.scope_id == scope_id,
             LaneEvaluation.scope_version.is_(scope_version)
@@ -710,8 +946,11 @@ def execute_lane(db: Session, body: LaneExecutionCreate) -> LaneExecutionResultR
     _require_active_binding(lane_spec, f"LaneSpec {lane_id} version {body.lane_spec_version}")
     if not lane_spec.is_admissible:
         raise GovernanceValidationError(f"LaneSpec {lane_id} version {body.lane_spec_version} is not admissible.")
-    if lane_spec.lane_family != LaneFamily.CANONICAL_NUMERIC.value:
-        raise GovernanceValidationError("Phase 6 execution substrate supports canonical_numeric lanes only.")
+    expected_lane_family = _expected_lane_family(lane_id)
+    if lane_spec.lane_family != expected_lane_family.value:
+        raise GovernanceValidationError(
+            f"lane_id {lane_id} requires lane_family={expected_lane_family.value}."
+        )
     _load_lane_spec_payload(lane_spec)
 
     required_variables = _required_variables_for_lane(lane_id)
@@ -856,6 +1095,12 @@ def execute_lane(db: Session, body: LaneExecutionCreate) -> LaneExecutionResultR
     )
     trace_bundle_id = new_uuid()
     compatibility_tuple = body.compatibility_binding.compatibility_tuple
+    replay_state = artifacts.replay_state or (
+        ReplayState.REPLAY_SAFE_WITH_BOUNDED_MIGRATION
+        if body.compatibility_resolution_state
+        == CompatibilityResolutionState.RESOLVED_WITH_BOUNDED_MIGRATION
+        else ReplayState.REPLAY_SAFE
+    )
 
     evaluation_create = LaneEvaluationCreate(
         lane_evaluation_id=lane_evaluation_id,
@@ -865,23 +1110,18 @@ def execute_lane(db: Session, body: LaneExecutionCreate) -> LaneExecutionResultR
         supersession_timestamp=body.supersession_timestamp,
         lane_id=lane_id,
         lane_spec_version=body.lane_spec_version,
-        lane_family=LaneFamily.CANONICAL_NUMERIC,
+        lane_family=expected_lane_family,
         execution_mode=CANONICAL_EXECUTION_MODE,
-        result_status=ResultStatus.COMPUTED_STRICT,
+        result_status=artifacts.result_status,
         compatibility_resolution_state=body.compatibility_resolution_state,
         runtime_profile_id=_clean_identifier(body.runtime_profile_id, "runtime_profile_id"),
         runtime_profile_version=body.runtime_profile_version,
         input_bundle_id=_clean_identifier(body.input_bundle_id, "input_bundle_id"),
-        replay_state=(
-            ReplayState.REPLAY_SAFE_WITH_BOUNDED_MIGRATION
-            if body.compatibility_resolution_state
-            == CompatibilityResolutionState.RESOLVED_WITH_BOUNDED_MIGRATION
-            else ReplayState.REPLAY_SAFE
-        ),
+        replay_state=replay_state,
         stale_state=StaleState.FRESH,
-        recomputation_action="no_recompute_needed",
-        lifecycle_reason_code="phase6_execution_created",
-        lifecycle_reason_detail="Canonical lane execution persisted through the bounded Phase 6 substrate.",
+        recomputation_action=artifacts.recomputation_action,
+        lifecycle_reason_code=artifacts.lifecycle_reason_code,
+        lifecycle_reason_detail=artifacts.lifecycle_reason_detail,
         raw_output_hash=None,
         scope_id=execution_scope_id,
         scope_version=execution_scope_version,

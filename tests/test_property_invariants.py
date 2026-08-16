@@ -1,9 +1,8 @@
-"""Property-based qualification for existing ForgeMath invariants.
+"""Property-based qualification for governed ForgeMath invariants.
 
-These tests expand input and lifecycle coverage without defining new lanes or
-changing canonical formulas. Golden vectors remain the exact semantic pins;
-the properties below verify bounds, monotonicity, stable serialization, and
-append-only supersession behavior around those governed formulas.
+Golden vectors remain the exact semantic pins; the properties below verify
+bounds, monotonicity, stable serialization, gate classification, and
+append-only supersession behavior around the governed formulas.
 """
 
 from decimal import Decimal
@@ -33,7 +32,9 @@ from app.services.execution_service import (
     _clamp_unit,
     _decimal_to_str,
     _derive_exposure_factor,
+    _derive_priority_score,
     _derive_recurrence_pressure,
+    _derive_reviewability,
     _derive_verification_burden,
 )
 from tests.test_phase2_api import _create_input_bundle, _evaluation_create, _seed_phase1_bindings
@@ -107,6 +108,38 @@ EXPOSURE_PARAMETERS = SimpleNamespace(
             "alpha_approve": "0.10",
             "alpha_cross": "0.15",
             "alpha_boundary": "0.05",
+        }
+    },
+)
+
+PRIORITY_PARAMETERS = SimpleNamespace(
+    parameter_set_id="property-priority-parameters",
+    version=1,
+    payload={
+        "weights": {
+            "lambda_1": "0.18",
+            "lambda_2": "0.14",
+            "lambda_3": "0.14",
+            "lambda_4": "0.22",
+            "lambda_5": "0.10",
+            "lambda_6": "0.10",
+            "lambda_7": "0.07",
+            "lambda_8": "0.05",
+        }
+    },
+)
+
+REVIEWABILITY_PARAMETERS = SimpleNamespace(
+    parameter_set_id="property-reviewability-parameters",
+    version=1,
+    payload={
+        "coefficients": {
+            "beta_evidence": "0.30",
+            "beta_lineage": "0.25",
+            "beta_compat": "0.30",
+            "beta_replay": "0.25",
+            "beta_degraded": "0.15",
+            "beta_invalid": "0.25",
         }
     },
 )
@@ -255,6 +288,103 @@ def test_exposure_factor_is_bounded_and_monotone_for_added_flags(
     assert ZERO <= lower.raw_score <= upper.raw_score <= ONE
     assert all(factor.raw_value in {ZERO, ONE} for factor in lower.factors[:-1])
     assert all(factor.raw_value in {ZERO, ONE} for factor in upper.factors[:-1])
+
+
+UNIT_DECIMALS = st.decimals(
+    min_value=Decimal("0"),
+    max_value=Decimal("1"),
+    places=6,
+    allow_nan=False,
+    allow_infinity=False,
+)
+
+
+@given(
+    rp=UNIT_DECIMALS,
+    vb=UNIT_DECIMALS,
+    ef=UNIT_DECIMALS,
+    rgr=UNIT_DECIMALS,
+    ce=UNIT_DECIMALS,
+    gv=UNIT_DECIMALS,
+    gap=st.booleans(),
+    ig=UNIT_DECIMALS,
+)
+@settings(max_examples=100)
+def test_priority_score_is_bounded_repeatable_and_recomposes_from_factors(
+    rp: Decimal,
+    vb: Decimal,
+    ef: Decimal,
+    rgr: Decimal,
+    ce: Decimal,
+    gv: Decimal,
+    gap: bool,
+    ig: Decimal,
+) -> None:
+    inputs = {
+        "RP": rp,
+        "VB": vb,
+        "EF": ef,
+        "RGR": rgr,
+        "CE": ce,
+        "GV": gv,
+        "control_gap_present": gap,
+        "IG": ig,
+    }
+
+    artifacts = _derive_priority_score(PRIORITY_PARAMETERS, FULL_RANGE_THRESHOLDS, inputs)
+    repeated = _derive_priority_score(PRIORITY_PARAMETERS, FULL_RANGE_THRESHOLDS, inputs)
+    weighted_total = sum((factor.weighted_value for factor in artifacts.factors), ZERO)
+
+    assert artifacts == repeated
+    assert ZERO <= artifacts.raw_score <= ONE
+    assert artifacts.raw_score == _canonical_output_decimal(_clamp_unit(weighted_total))
+    assert all(ZERO <= factor.normalized_value <= ONE for factor in artifacts.factors)
+
+
+@given(enabled_mask=st.integers(min_value=0, max_value=63))
+@settings(max_examples=64)
+def test_reviewability_all_issue_masks_preserve_score_and_gate_posture(enabled_mask: int) -> None:
+    flag_names = (
+        "m_evidence",
+        "m_lineage",
+        "m_compat",
+        "m_replay",
+        "m_degraded",
+        "m_invalid",
+    )
+    inputs = {
+        name: bool(enabled_mask & (1 << index))
+        for index, name in enumerate(flag_names)
+    }
+
+    artifacts = _derive_reviewability(
+        REVIEWABILITY_PARAMETERS,
+        FULL_RANGE_THRESHOLDS,
+        inputs,
+    )
+    repeated = _derive_reviewability(
+        REVIEWABILITY_PARAMETERS,
+        FULL_RANGE_THRESHOLDS,
+        inputs,
+    )
+    product = ONE
+    for factor in artifacts.factors:
+        product *= ONE - factor.weighted_value
+
+    hard_gate_mask = enabled_mask & 0b101111
+    degraded_only = enabled_mask == 0b010000
+    expected_status = (
+        ResultStatus.BLOCKED
+        if hard_gate_mask
+        else ResultStatus.COMPUTED_DEGRADED
+        if degraded_only
+        else ResultStatus.COMPUTED_STRICT
+    )
+
+    assert artifacts == repeated
+    assert artifacts.raw_score == _canonical_output_decimal(product)
+    assert artifacts.result_status == expected_status
+    assert all(factor.raw_value in {ZERO, ONE} for factor in artifacts.factors)
 
 
 @given(

@@ -8,7 +8,7 @@ Read and follow `AGENTS.md`. Canonical system truth is authored under `doc/syste
 - Fail closed for missing, inactive, incompatible, cross-lane, or non-deterministic bindings. Projections and read models are not source truth.
 - Canonical numeric work stays in deterministic `Decimal` arithmetic and persists as decimal strings.
 - Computed canonical truth enters through governed `POST /lane-executions`; `POST /lane-evaluations` is limited to non-computed manual historical/audit ingest.
-- The supported FastAPI execution lanes are exactly `verification_burden`, `recurrence_pressure`, and `exposure_factor`. Do not add lanes or change formulas, weights, thresholds, rounding, quantization, or golden vectors without separate authority.
+- The supported FastAPI execution lanes are exactly `verification_burden`, `recurrence_pressure`, `exposure_factor`, `priority_score`, and the `reviewability` hybrid gate. Do not add lanes or change formulas, weights, thresholds, rounding, quantization, or golden vectors without separate authority.
 - Never add arbitrary caller-supplied expression execution or broaden ForgeMath into a symbolic-algebra or general policy engine.
 
 ## Surfaces

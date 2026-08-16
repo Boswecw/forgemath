@@ -85,7 +85,7 @@ def test_receipt_rejects_float_semantics_unsupported_lanes_and_runtime_claims() 
     _assert_invalid("receipt", exponent_value)
 
     unsupported_lane = deepcopy(FIXTURES["receipt"])
-    unsupported_lane["lane_evaluation"]["lane_id"] = "priority_score"
+    unsupported_lane["lane_evaluation"]["lane_id"] = "control_effectiveness"
     _assert_invalid("receipt", unsupported_lane)
 
     runtime_claim = deepcopy(FIXTURES["receipt"])
@@ -97,6 +97,26 @@ def test_receipt_rejects_float_semantics_unsupported_lanes_and_runtime_claims() 
         f"sha256:{prefixed_persisted_hash['lane_evaluation']['raw_output_hash']}"
     )
     _assert_invalid("receipt", prefixed_persisted_hash)
+
+
+@pytest.mark.parametrize(
+    "lane_id",
+    (
+        "verification_burden",
+        "recurrence_pressure",
+        "exposure_factor",
+        "priority_score",
+        "reviewability",
+    ),
+)
+def test_research_contracts_admit_exact_runtime_lane_set(lane_id: str) -> None:
+    receipt = deepcopy(FIXTURES["receipt"])
+    receipt["lane_evaluation"]["lane_id"] = lane_id
+    _validator("receipt").validate(receipt)
+
+    manifest = deepcopy(FIXTURES["manifest"])
+    manifest["lane_id"] = lane_id
+    _validator("manifest").validate(manifest)
 
 
 def test_manifest_requires_governance_artifacts_and_forbids_execution() -> None:

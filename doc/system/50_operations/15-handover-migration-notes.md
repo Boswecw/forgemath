@@ -36,8 +36,8 @@ not implemented. Current projections are intentional ephemeral read models in
 - runtime admission evolution beyond bounded deterministic validation and persisted evidence
 - replay workers and queue processors
 - stale-state automation engine
-- execution expansion beyond `verification_burden`, `recurrence_pressure`, and `exposure_factor`
-- hybrid gate execution and broader multi-lane orchestration
+- execution expansion beyond `verification_burden`, `recurrence_pressure`, `exposure_factor`, `priority_score`, and `reviewability`
+- broader multi-lane orchestration beyond the registered lane-local execution contracts
 - broader database-level exclusion or partitioning strategies if future execution expansion outgrows the current unique active execution key
 - a locked or constraints-based resolution for the currently ranged Pydantic and JSON Schema dependencies
 - operational deployment evidence, branch-protection policy, and external-service readiness, which remain outside this repository change

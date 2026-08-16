@@ -11,7 +11,7 @@ ForgeMath is the Forge ecosystem's backend authority for governed, deterministic
 
 ## Mathematical and truth boundaries
 
-- The only canonical FastAPI execution lanes currently registered are `verification_burden`, `recurrence_pressure`, and `exposure_factor` in `app/services/execution_service.py`.
+- The canonical FastAPI execution lanes registered in `app/services/execution_service.py` are the numeric lanes `verification_burden`, `recurrence_pressure`, `exposure_factor`, and `priority_score`, plus the `reviewability` hybrid gate.
 - Do not add lanes or change formulas, weights, thresholds, rounding, quantization, normalization, or golden-vector semantics without separately authorized governance approval.
 - Do not introduce arbitrary expression evaluation. Governed code and typed contracts, not caller-supplied expressions, define executable math.
 - Canonical numeric artifacts use deterministic `Decimal` computation and persist as canonical decimal strings. Never route canonical math through binary floats.

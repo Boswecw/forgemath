@@ -28,6 +28,7 @@ def _seed_execution_bindings(
     parameter_payload: dict,
     threshold_payload: dict,
     runtime_overrides: dict | None = None,
+    lane_family: str = "canonical_numeric",
 ):
     runtime_overrides = runtime_overrides or {}
     lane_spec = registry_service.create_lane_spec(
@@ -37,7 +38,7 @@ def _seed_execution_bindings(
             version=1,
             effective_from=datetime(2026, 4, 2, tzinfo=timezone.utc),
             created_by="phase6-test",
-            lane_family="canonical_numeric",
+            lane_family=lane_family,
             trace_tier="tier_1_full",
             is_admissible=True,
             payload={"contract_version": "v1", "lane_id": lane_id},
@@ -453,18 +454,18 @@ def test_lane_execution_rejects_missing_required_input(db):
 def test_lane_execution_rejects_unsupported_lane(db):
     body = LaneExecutionCreate(
         lane_evaluation_id="exec-ps-001",
-        lane_id="priority_score",
+        lane_id="control_effectiveness",
         lane_spec_version=1,
         compatibility_resolution_state="resolved_hard_compatible",
-        runtime_profile_id="priority-runtime",
+        runtime_profile_id="control-effectiveness-runtime",
         runtime_profile_version=1,
         input_bundle_id="bundle-001",
         compatibility_binding=CompatibilityBinding(
-            variable_registry_id="priority-vars",
-            parameter_set_id="priority-params",
-            threshold_set_id="priority-thresholds",
-            null_policy_bundle_id="priority-null",
-            degraded_mode_policy_bundle_id="priority-degraded",
+            variable_registry_id="control-effectiveness-vars",
+            parameter_set_id="control-effectiveness-params",
+            threshold_set_id="control-effectiveness-thresholds",
+            null_policy_bundle_id="control-effectiveness-null",
+            degraded_mode_policy_bundle_id="control-effectiveness-degraded",
             compatibility_tuple=CompatibilityTuple(
                 lane_spec_version=1,
                 variable_registry_version=1,

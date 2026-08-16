@@ -22,7 +22,7 @@ evidence, governed package contents, provenance, redaction posture, signature
 claims, and verification policy. They are not imported by `app/`, exposed by
 an API, persisted in canonical tables, or used to activate executable math.
 
-The schemas fail closed to the three existing lanes, canonical decimal strings,
+The schemas fail closed to the five registered lanes, canonical decimal strings,
 complete governed artifact roles, `executable=false`, and
 `arbitrary_expression_allowed=false`. The signature fixture is explicitly
 unverified. Runtime adoption requires separate governance for canonical JSON,

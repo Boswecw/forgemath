@@ -24,7 +24,13 @@
     "equation_package_id": { "type": "string", "minLength": 1, "maxLength": 255 },
     "version": { "type": "integer", "minimum": 1 },
     "lane_id": {
-      "enum": ["verification_burden", "recurrence_pressure", "exposure_factor"]
+      "enum": [
+        "verification_burden",
+        "recurrence_pressure",
+        "exposure_factor",
+        "priority_score",
+        "reviewability"
+      ]
     },
     "created_at": { "type": "string", "format": "date-time" },
     "created_by": { "type": "string", "minLength": 1, "maxLength": 255 },

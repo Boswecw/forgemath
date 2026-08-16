@@ -22,7 +22,13 @@ from app.config import DATABASE_URL, SERVICE_NAME, SERVICE_VERSION, validate_con
 
 ROLE = "evaluation-spine math authority (CLI producer; FastAPI also available)"
 EXPECTED_SUPPORTED_LANES = frozenset(
-    {"verification_burden", "recurrence_pressure", "exposure_factor"}
+    {
+        "verification_burden",
+        "recurrence_pressure",
+        "exposure_factor",
+        "priority_score",
+        "reviewability",
+    }
 )
 NOT_CHECKED = "not_checked"
 
