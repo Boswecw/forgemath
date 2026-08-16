@@ -17,7 +17,9 @@
 | Tool | Version | Purpose |
 |------|---------|---------|
 | pytest | `7.4.3` | Repo test runner |
+| Hypothesis | `6.165.9` | Property-based and stateful invariant generation |
 | httpx | `0.27.2` | FastAPI-compatible request tooling and dependency surface |
+| jsonschema | `>=4.23.0,<5` | Evaluation Spine and research-contract JSON Schema validation |
 
 `pydantic` and `jsonschema` use bounded ranges rather than exact full-lock
 resolution. CI's clean dependency installation tests the resolved set, but a

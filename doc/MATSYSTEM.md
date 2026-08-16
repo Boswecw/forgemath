@@ -198,6 +198,8 @@ ForgeMath/
 │   ├── models/
 │   ├── schemas/
 │   └── services/
+├── contracts/
+│   └── research/
 ├── doc/
 │   └── system/
 ├── docs/
@@ -212,6 +214,7 @@ ForgeMath/
 | `app/models/*.py` | Canonical table ownership |
 | `app/schemas/*.py` | Request/read contract types |
 | `app/services/*.py` | Business rules and invariants |
+| `contracts/research/*` | Non-runtime JSON Schemas and fixtures for bounded contract research |
 | `doc/system/*.md` | Modular SYSTEM source files |
 | `docs/*.md` | Architecture, roadmap, and module specs |
 
@@ -602,7 +605,9 @@ No route silently degrades a missing or incompatible binding into a success path
 | Tool | Version | Purpose |
 |------|---------|---------|
 | pytest | `7.4.3` | Repo test runner |
+| Hypothesis | `6.165.9` | Property-based and stateful invariant generation |
 | httpx | `0.27.2` | FastAPI-compatible request tooling and dependency surface |
+| jsonschema | `>=4.23.0,<5` | Evaluation Spine and research-contract JSON Schema validation |
 
 `pydantic` and `jsonschema` use bounded ranges rather than exact full-lock
 resolution. CI's clean dependency installation tests the resolved set, but a
@@ -656,6 +661,27 @@ records. Projections remain derived read models and never become source truth.
 Formula, weight, threshold, rounding, quantization, and supported-lane changes
 require explicit mathematical governance and updated golden evidence. Caller-
 supplied expressions are prohibited.
+
+## Research contract boundary
+
+`contracts/research/` contains strict JSON Schema 2020-12 research artifacts
+for `MathDecisionReceipt.v1`, `EquationPackageManifest.v1`, and
+`SignedEquationPackageResearch.v1`. They model content-addressed decision
+evidence, governed package contents, provenance, redaction posture, signature
+claims, and verification policy. They are not imported by `app/`, exposed by
+an API, persisted in canonical tables, or used to activate executable math.
+
+The schemas fail closed to the three existing lanes, canonical decimal strings,
+complete governed artifact roles, `executable=false`, and
+`arbitrary_expression_allowed=false`. The signature fixture is explicitly
+unverified. Runtime adoption requires separate governance for canonical JSON,
+real cryptographic verification, key trust and rotation, revocation, threshold
+enforcement, storage, lifecycle, approval, and migrations.
+
+The research mapping uses W3C PROV entity/activity/agent concepts, separates
+build definition from run details following SLSA provenance v1.2, and requires
+per-artifact digests following signed-bundle verification practice. These are
+interoperability influences, not conformance claims.
 
 ---
 
@@ -724,6 +750,7 @@ instructions. Merge and deployment require separate authority.
 | `tests/test_phase7_hardening.py` | Persistence-level active canonical execution exclusivity, determinism-sensitive migration package validation, runtime-recovery inspection, and supersession hardening checks |
 | `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
 | `tests/test_property_invariants.py` | Hypothesis-generated decimal serialization, formula bounds and monotonicity, replay posture, lifecycle severity, and stateful append-only supersession-chain invariants |
+| `tests/test_research_contracts.py` | JSON Schema meta-validation, valid receipt/package fixtures, fail-closed research boundaries, and cross-artifact content-address checks |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
 | `tests/test_postgres_invariants.py` | Postgres-backed migration/schema invariant checks when `FORGEMATH_POSTGRES_TEST_URL` is supplied |
 | `tests/test_evaluation_spine_phase05.py` | Evaluation Spine contract validation, deterministic decimal scoring, file runner, and fail-closed input behavior |
@@ -775,6 +802,8 @@ It also validates the hardening slices for:
 - property-generated replay postures preserve compatibility and audit-result restrictions
 - property-generated lifecycle sequences never reduce stale-state severity
 - stateful supersession sequences preserve one active canonical truth and an acyclic append-only lineage chain
+- research contracts reject executable/arbitrary-expression claims, unsupported lanes, exponent-form decimals, missing governed artifacts, and unsigned envelopes
+- research receipt and signed-package fixtures resolve the same canonical equation-package manifest digest
 
 HTTP route checks and Postgres-backed invariant checks are present but may skip in
 restricted environments that block localhost binding or do not provide a Postgres URL.
