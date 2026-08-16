@@ -723,6 +723,7 @@ instructions. Merge and deployment require separate authority.
 | `tests/test_phase6_execution.py` | Supported lane execution happy paths, repeatability/hash-stability checks, and fail-closed missing-binding, missing-input, unsupported-lane, invalid-parameter, invalid-threshold, runtime-profile, and variable-registry insufficient-coverage execution checks |
 | `tests/test_phase7_hardening.py` | Persistence-level active canonical execution exclusivity, determinism-sensitive migration package validation, runtime-recovery inspection, and supersession hardening checks |
 | `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
+| `tests/test_property_invariants.py` | Hypothesis-generated decimal serialization, formula bounds and monotonicity, replay posture, lifecycle severity, and stateful append-only supersession-chain invariants |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
 | `tests/test_postgres_invariants.py` | Postgres-backed migration/schema invariant checks when `FORGEMATH_POSTGRES_TEST_URL` is supplied |
 | `tests/test_evaluation_spine_phase05.py` | Evaluation Spine contract validation, deterministic decimal scoring, file runner, and fail-closed input behavior |
@@ -769,6 +770,11 @@ It also validates the hardening slices for:
 - variable registry insufficient coverage rejection (registry present, variables missing)
 - stale_input_invalidated positive transition path with input_bundle_invalidated evidence
 - stale_upstream_changed positive transition path when upstream registry is superseded
+- property-generated decimal serialization round trips without exponent notation
+- property-generated formula inputs preserve canonical bounds, determinism, and monotonicity
+- property-generated replay postures preserve compatibility and audit-result restrictions
+- property-generated lifecycle sequences never reduce stale-state severity
+- stateful supersession sequences preserve one active canonical truth and an acyclic append-only lineage chain
 
 HTTP route checks and Postgres-backed invariant checks are present but may skip in
 restricted environments that block localhost binding or do not provide a Postgres URL.

@@ -1,4 +1,4 @@
-# ForgeMath Phase 1 foundation dependencies
+# ForgeMath runtime and qualification dependencies
 
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
@@ -8,5 +8,6 @@ psycopg2-binary==2.9.10
 python-dotenv==1.0.0
 pydantic>=2.10.0
 pytest==7.4.3
+hypothesis==6.165.9
 httpx==0.27.2
 jsonschema>=4.23.0,<5
