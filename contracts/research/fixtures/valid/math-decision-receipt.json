@@ -1,0 +1,71 @@
+{
+  "schema_version": "MathDecisionReceipt.v1",
+  "contract_status": "research_only_not_runtime_authority",
+  "receipt_id": "math-receipt:verification-burden:eval-001",
+  "decision_id": "decision:verification-burden:eval-001",
+  "issued_at": "2026-08-16T05:51:00Z",
+  "authority": {
+    "service": "ForgeMath",
+    "execution_mode": "governed_canonical_execution",
+    "human_authority_posture": "operator_review_required"
+  },
+  "lane_evaluation": {
+    "lane_evaluation_id": "eval-001",
+    "lane_id": "verification_burden",
+    "lane_spec_version": 1,
+    "runtime_profile_id": "verification-burden-runtime",
+    "runtime_profile_version": 1,
+    "compatibility_tuple_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+    "raw_output_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "equation_package_ref": {
+    "equation_package_id": "verification-burden-package",
+    "version": 1,
+    "manifest_digest": "sha256:03c2266dcd0d3d53170a620270420e8df4e04ed328febb30126ec3c2b4872c8f"
+  },
+  "inputs": [
+    {
+      "artifact_id": "input-bundle:bundle-001",
+      "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "media_type": "application/json"
+    }
+  ],
+  "outputs": [
+    {
+      "output_field_name": "verification_burden_raw",
+      "output_posture": "raw",
+      "numeric_value": "0.39"
+    },
+    {
+      "output_field_name": "verification_burden_band",
+      "output_posture": "banded",
+      "enum_value": "moderate"
+    }
+  ],
+  "trace": {
+    "trace_bundle_id": "trace-eval-001",
+    "trace_bundle_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "trace_tier": "tier_1_full",
+    "reconstructable": false
+  },
+  "redaction": {
+    "posture": "none",
+    "redacted_fields": []
+  },
+  "provenance": {
+    "entity_id": "entity:math-decision-receipt:eval-001",
+    "activity_id": "activity:forgemath-evaluation:eval-001",
+    "responsible_agents": [
+      "agent:ForgeMath",
+      "agent:forge-governance-approver"
+    ],
+    "used_entities": [
+      "entity:input-bundle:bundle-001",
+      "entity:equation-package:verification-burden-package:v1"
+    ],
+    "generated_entities": [
+      "entity:lane-evaluation:eval-001",
+      "entity:math-decision-receipt:eval-001"
+    ]
+  }
+}

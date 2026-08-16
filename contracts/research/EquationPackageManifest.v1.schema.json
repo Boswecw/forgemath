@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.boswelldigitalsolutions.com/forgemath/research/EquationPackageManifest.v1.schema.json",
+  "title": "EquationPackageManifest.v1",
+  "description": "Non-executable research manifest for a content-addressed governed equation package.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_status",
+    "equation_package_id",
+    "version",
+    "lane_id",
+    "created_at",
+    "created_by",
+    "governance",
+    "artifacts",
+    "provenance",
+    "build_provenance"
+  ],
+  "properties": {
+    "schema_version": { "const": "EquationPackageManifest.v1" },
+    "contract_status": { "const": "research_only_not_runtime_authority" },
+    "equation_package_id": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "version": { "type": "integer", "minimum": 1 },
+    "lane_id": {
+      "enum": ["verification_burden", "recurrence_pressure", "exposure_factor"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "governance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_state", "executable", "arbitrary_expression_allowed"],
+      "properties": {
+        "approval_state": { "const": "research_only" },
+        "executable": { "const": false },
+        "arbitrary_expression_allowed": { "const": false }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "digest", "media_type"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "role": {
+            "enum": [
+              "lane_spec",
+              "variable_registry",
+              "parameter_set",
+              "threshold_set",
+              "null_policy",
+              "degraded_mode_policy",
+              "golden_vectors",
+              "approval_receipt"
+            ]
+          },
+          "digest": { "$ref": "#/$defs/sha256Digest" },
+          "media_type": { "type": "string", "minLength": 1, "maxLength": 255 }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity_id", "activity_id", "responsible_agents", "source_repository", "source_commit"],
+      "properties": {
+        "entity_id": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "activity_id": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "responsible_agents": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 255 }
+        },
+        "source_repository": { "type": "string", "format": "uri" },
+        "source_commit": { "$ref": "#/$defs/gitSha" }
+      }
+    },
+    "build_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_type",
+        "external_parameters",
+        "resolved_dependencies",
+        "builder_id",
+        "invocation_id",
+        "started_on",
+        "finished_on"
+      ],
+      "properties": {
+        "build_type": { "type": "string", "format": "uri" },
+        "external_parameters": { "type": "object" },
+        "resolved_dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resourceDescriptor" }
+        },
+        "builder_id": { "type": "string", "format": "uri" },
+        "invocation_id": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "started_on": { "type": "string", "format": "date-time" },
+        "finished_on": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "allOf": [
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "lane_spec" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } },
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "variable_registry" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } },
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "parameter_set" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } },
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "threshold_set" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } },
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "null_policy" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } },
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "degraded_mode_policy" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } },
+    { "properties": { "artifacts": { "contains": { "properties": { "role": { "const": "golden_vectors" } }, "required": ["role"] }, "minContains": 1, "maxContains": 1 } } }
+  ],
+  "$defs": {
+    "sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "resourceDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "digest"],
+      "properties": {
+        "uri": { "type": "string", "format": "uri" },
+        "digest": { "$ref": "#/$defs/sha256Digest" }
+      }
+    }
+  }
+}

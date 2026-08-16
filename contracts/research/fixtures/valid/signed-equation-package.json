@@ -1,0 +1,106 @@
+{
+  "schema_version": "SignedEquationPackageResearch.v1",
+  "contract_status": "research_only_not_runtime_authority",
+  "manifest": {
+    "schema_version": "EquationPackageManifest.v1",
+    "contract_status": "research_only_not_runtime_authority",
+    "equation_package_id": "verification-burden-package",
+    "version": 1,
+    "lane_id": "verification_burden",
+    "created_at": "2026-08-16T05:50:00Z",
+    "created_by": "forge-governance-research",
+    "governance": {
+      "approval_state": "research_only",
+      "executable": false,
+      "arbitrary_expression_allowed": false
+    },
+    "artifacts": [
+      {
+        "path": "lane-spec.json",
+        "role": "lane_spec",
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "media_type": "application/json"
+      },
+      {
+        "path": "variable-registry.json",
+        "role": "variable_registry",
+        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "media_type": "application/json"
+      },
+      {
+        "path": "parameter-set.json",
+        "role": "parameter_set",
+        "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+        "media_type": "application/json"
+      },
+      {
+        "path": "threshold-set.json",
+        "role": "threshold_set",
+        "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+        "media_type": "application/json"
+      },
+      {
+        "path": "null-policy.json",
+        "role": "null_policy",
+        "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "media_type": "application/json"
+      },
+      {
+        "path": "degraded-mode-policy.json",
+        "role": "degraded_mode_policy",
+        "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "media_type": "application/json"
+      },
+      {
+        "path": "golden-vectors.json",
+        "role": "golden_vectors",
+        "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "media_type": "application/json"
+      }
+    ],
+    "provenance": {
+      "entity_id": "entity:verification-burden-package:v1",
+      "activity_id": "activity:equation-package-assembly:research-001",
+      "responsible_agents": [
+        "agent:forge-governance-research"
+      ],
+      "source_repository": "https://github.com/Boswell-Digital-Solutions/forgemath",
+      "source_commit": "93fa203a7dd0e0d58eeaef2ee3052a41dcb9ec3b"
+    },
+    "build_provenance": {
+      "build_type": "https://schemas.boswelldigitalsolutions.com/forgemath/build-types/equation-package-research/v1",
+      "external_parameters": {
+        "lane_id": "verification_burden",
+        "package_version": 1
+      },
+      "resolved_dependencies": [
+        {
+          "uri": "https://github.com/Boswell-Digital-Solutions/forgemath",
+          "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+        }
+      ],
+      "builder_id": "https://github.com/Boswell-Digital-Solutions/forgemath/actions/workflows/ci.yml",
+      "invocation_id": "research-equation-package-001",
+      "started_on": "2026-08-16T05:49:00Z",
+      "finished_on": "2026-08-16T05:50:00Z"
+    }
+  },
+  "manifest_digest": "sha256:03c2266dcd0d3d53170a620270420e8df4e04ed328febb30126ec3c2b4872c8f",
+  "payload_type": "application/vnd.bds.forgemath.equation-package-manifest.v1+json",
+  "signatures": [
+    {
+      "key_id": "research-key-001",
+      "algorithm": "ed25519",
+      "signature": "cmVzZWFyY2gtb25seS1ub3QtYS1yZWFsLXNpZ25hdHVyZQ=="
+    }
+  ],
+  "verification_policy": {
+    "threshold": 1,
+    "trusted_key_ids": [
+      "research-key-001"
+    ],
+    "require_all_artifact_digests": true
+  },
+  "signature_status": "unverified_research_fixture",
+  "executable": false
+}
