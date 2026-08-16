@@ -1,10 +1,10 @@
 # Structure
 
-**Document version:** 1.0 (bootstrap scaffold)
+`doc/system/` is the authored modular source tree. `BUILD.sh` concatenates
+`_index.md` and every two-digit chapter in stable path order, validates the
+assembled snapshot, and writes `doc/MATSYSTEM.md`. The assembled document is a
+generated review artifact and must have no hand-authored drift.
 
-Module/chapter layout and cross-reference rules.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+Root `AGENTS.md` defines repository working rules. `CLAUDE.md` is a concise
+agent-specific companion, `README.md` is an operator entry point, and `docs/`
+contains design references or historical context.

@@ -1,7 +1,8 @@
 ## 7. Frontend
 
-No frontend implementation exists in the current Phase 1-7 repo state.
-Operator interaction is through documentation, migrations, and HTTP routes.
+No frontend implementation exists in the current repository state. Operator
+interaction is through documentation, migrations, HTTP routes, and CLI
+contracts.
 
 ### 7.1 Deferred Frontend Work
 

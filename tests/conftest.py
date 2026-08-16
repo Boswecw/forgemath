@@ -3,6 +3,7 @@ import os
 from collections.abc import Generator
 from pathlib import Path
 import sys
+import tempfile
 
 import httpx
 import pytest
@@ -13,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-TEST_DB_PATH = Path("/tmp/forgemath-test.sqlite3")
+TEST_DB_PATH = Path(tempfile.gettempdir()) / "forgemath-test.sqlite3"
 SQLALCHEMY_TEST_DATABASE_URL = f"sqlite:///{TEST_DB_PATH}"
 os.environ.setdefault("FORGEMATH_DATABASE_URL", SQLALCHEMY_TEST_DATABASE_URL)
 os.environ.setdefault("FORGEMATH_HOST", "127.0.0.1")

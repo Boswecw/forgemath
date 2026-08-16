@@ -16,13 +16,26 @@
 | `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
 | `tests/test_postgres_invariants.py` | Postgres-backed migration/schema invariant checks when `FORGEMATH_POSTGRES_TEST_URL` is supplied |
+| `tests/test_evaluation_spine_phase05.py` | Evaluation Spine contract validation, deterministic decimal scoring, file runner, and fail-closed input behavior |
+| `tests/lineage/` | ForgeLineage emission, identity-only node posture, upstream discovery, non-blocking failure, and default-off behavior against the pinned SDK |
+| `tests/test_health_cli.py` | Lightweight health contract, real version reporting, degraded imports, and optional-lineage readiness posture |
 
 ### 14.2 Execution
 
 ```bash
-python -m pytest tests -q
-FORGEMATH_DATABASE_URL=sqlite:///./hardening_verify.db alembic upgrade head
+FORGEMATH_DATABASE_URL=sqlite:///./qualification.sqlite3 alembic upgrade head
+PYTHONPATH=.ci/forge_lineage/sdk python -m pytest tests -q
+python -m app.health_cli
+FORGEMATH_DATABASE_URL=sqlite:///./qualification.sqlite3 python -m app.health_cli --readiness
+bash doc/system/BUILD.sh
+bash doc/system/validate_snapshots.sh
+git diff --exit-code -- doc/MATSYSTEM.md
 ```
+
+CI checks out the ForgeLineage SDK at the revision pinned in
+`.github/workflows/ci.yml` before running the complete suite. Test database
+paths use the host temporary directory so the same suite runs on Windows and
+POSIX hosts.
 
 ### 14.3 Test Boundary
 
@@ -50,3 +63,10 @@ It also validates the hardening slices for:
 
 HTTP route checks and Postgres-backed invariant checks are present but may skip in
 restricted environments that block localhost binding or do not provide a Postgres URL.
+The Postgres skip is explicit and reproducible: supply
+`FORGEMATH_POSTGRES_TEST_URL` to enable it. CI does not silently ignore any
+other test failure.
+
+Exact pass counts are qualification evidence, not canonical facts. Reproduce
+the current inventory with the complete command above; PRs record the observed
+result and environment at review time instead of preserving stale counts here.

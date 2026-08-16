@@ -1,31 +1,31 @@
-        # ForgeMath - Compiled System Reference
+# ForgeMath - Compiled System Reference
 
-        **Designation:** MAT
-        **Document role:** Canonical compiled technical reference for ForgeMath
-        **Source:** `doc/system/`
-        **Build command:** `bash doc/system/BUILD.sh`
-        **Document version:** 2.0 (2026-06-22) - canonical compliance migration
-        **Protocol:** BDS Documentation Protocol v2.0; BDS Repo Documentation System Canonical Compliance Standard
+**Designation:** MAT
+**Document role:** Canonical compiled technical reference for ForgeMath
+**Source:** `doc/system/`
+**Build command:** `bash doc/system/BUILD.sh`
+**Document version:** 2.1 (2026-08-16) - truth reconciliation and qualification
+**Protocol:** BDS Documentation Protocol v2.0; BDS Repo Documentation System Canonical Compliance Standard
 
-        > **Generated artifact warning:** `doc/MATSYSTEM.md` is assembled output. Edit
-        > the source modules under `doc/system/` and rebuild. Hand edits to the
-        > compiled artifact are overwritten by the next build.
+> **Generated artifact warning:** `doc/MATSYSTEM.md` is assembled output. Edit
+> the source modules under `doc/system/` and rebuild. Hand edits to the
+> compiled artifact are overwritten by the next build.
 
-        Assembly contract:
+Assembly contract:
 
-        - Command: `bash doc/system/BUILD.sh`
-        - Validation: `bash doc/system/validate_snapshots.sh` runs during assembly
-        - Primary output: `doc/MATSYSTEM.md`
+- Command: `bash doc/system/BUILD.sh`
+- Validation: `bash doc/system/validate_snapshots.sh` runs during assembly
+- Primary output: `doc/MATSYSTEM.md`
 
-        This `doc/system/` tree is the canonical source of truth for ForgeMath. It uses
-        explicit **truth classes**: canonical facts define repo role, authority
-        boundaries, contract behavior, runtime behavior, and verification doctrine;
-        snapshot facts are dated, audit-derived counts and current implementation
-        inventory that may drift between audits.
+This `doc/system/` tree is the canonical source of truth for ForgeMath. It uses
+explicit **truth classes**: canonical facts define repo role, authority
+boundaries, contract behavior, runtime behavior, and verification doctrine;
+snapshot facts are dated evidence such as current implementation inventory or
+qualification results and must name their date and reproduction command.
 
-        | Part | File | Contents |
-        | --- | --- | --- |
-        | §1 | `00_overview/00-overview.md` | Overview |
+| Part | File | Contents |
+| --- | --- | --- |
+| §1 | `00_overview/00-overview.md` | Overview |
 | §2 | `00_overview/01-architecture.md` | Architecture |
 | §3 | `00_overview/01-overview-philosophy.md` | 1. Overview & Philosophy |
 | §4 | `00_overview/02-architecture.md` | 2. Architecture |
@@ -48,39 +48,47 @@
 | §21 | `99_appendices/20-structure.md` | Structure |
 | §22 | `99_appendices/90-appendices.md` | Appendices |
 
-        ## Quick Assembly
+## Quick Assembly
 
-        ```bash
-        bash doc/system/BUILD.sh
-        ```
+```bash
+bash doc/system/BUILD.sh
+```
 
 ---
 
 # Overview
 
-> **System identity — bds family (Boswell Digital Solutions business system, local-systems tier).** ForgeMath is the Forge ecosystem's canonical math and rule authority surface, part of the Forge ecosystem backend in `ecosystem/local-systems`.
+> **System identity — bds family (Boswell Digital Solutions business system, local-systems tier).** ForgeMath is the Forge ecosystem's backend canonical math and governed rule-evaluation authority under `ecosystem/local-systems`.
 
-**Document version:** 1.0 (bootstrap scaffold)
+ForgeMath owns versioned governance registries, canonical evaluation and
+lifecycle truth, deterministic runtime-admission evidence, bounded execution,
+and truth-preserving projections. It also provides a distinct file-based
+Evaluation Spine CLI and optional ForgeLineage emission.
 
-System identity, role, and boundary with the rest of the Forge ecosystem.
+Its authority is intentionally bounded. ForgeMath is not a helper library, a
+general policy engine, a symbolic-algebra service, or an arbitrary expression
+executor. Human-approved typed contracts and code define the supported math.
 
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+The current FastAPI execution surface supports exactly three governed lanes:
+`verification_burden`, `recurrence_pressure`, and `exposure_factor`.
 
 ---
 
-# Architecture
+# Architecture Surfaces
 
-**Document version:** 1.0 (bootstrap scaffold)
+ForgeMath exposes two distinct authority surfaces:
 
-High-level architecture, authority posture, and surface ownership.
+1. The FastAPI service routes governed registry writes and reads, manual
+   non-computed ingest, canonical bounded lane execution, lifecycle and
+   admission inspection, and projections through SQLAlchemy persistence.
+2. The Evaluation Spine CLI reads a calibration-report contract and writes a
+   deterministic ForgeMath contract artifact. It does not call the FastAPI
+   lane-execution route and does not expand the three registered API lanes.
 
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+The lightweight health CLI is a third operational interface, not a math lane.
+Its default mode checks only the Evaluation Spine CLI import surface for
+Forge_Command. Explicit `--readiness` mode inspects local service readiness
+without creating or migrating a database or contacting lineage transport.
 
 ---
 
@@ -220,6 +228,13 @@ Implemented routes live under `/api/v1/forgemath/governance` and `/api/v1/forgem
 |-------|------|---------|
 | `GET` | `/health` | Service health and phase marker |
 
+The HTTP route is separate from the operational CLI health contract.
+`python -m app.health_cli` is Forge_Command's lightweight Evaluation Spine
+producer probe and does not inspect the database or FastAPI readiness.
+`python -m app.health_cli --readiness` explicitly inspects configuration, an
+existing database, migration alignment, FastAPI construction, supported-lane
+registration, and optional lineage configuration without mutating state.
+
 ### 8.2 Governance Routes
 
 | Family | Create | List | Get version |
@@ -251,6 +266,10 @@ through `POST /lane-executions`.
 | Family | Action | Path |
 |-------|--------|------|
 | Bounded canonical execution | `POST` | `/lane-executions` |
+
+This route supports exactly `verification_burden`, `recurrence_pressure`, and
+`exposure_factor`. It does not execute the Evaluation Spine CLI lane contract
+or caller-supplied expressions.
 
 ### 8.5 Lifecycle Routes
 
@@ -284,17 +303,32 @@ non-deterministic, or retired.
 
 ## 10. Ecosystem Integration
 
-Phase 1 intentionally avoids direct runtime coupling to other Forge services.
+ForgeMath keeps its canonical math locally owned while exposing explicit,
+bounded integration surfaces. Optional integration is not equivalent to no
+integration: the Evaluation Spine file evaluation remains usable when lineage
+is disabled or unavailable.
 
 ### 10.1 Current Integration State
 
 | Service | Current relationship | Notes |
 |--------|----------------------|-------|
-| DataForge | None at runtime | Future consumer/integration target only |
-| Forge Command | None at runtime | Policy or operator tooling deferred |
-| NeuroForge | None | No AI execution path in repo runtime |
+| DataForge-Local | Optional ForgeLineage destination | When `FORGEMATH_LINEAGE_URL` is set, the Evaluation Spine flow emits ForgeMath-owned evaluation/output nodes and an optional consumed edge; default-off and non-blocking |
+| Forge_Command | Health and artifact consumer | Invokes `python -m app.health_cli`; its gate walk may resolve the rich output contract artifact referenced by lineage |
+| ForgeLineage | Pinned SDK contract | CI checks out a fixed SDK revision for lineage tests; the transport is never contacted by readiness |
+| NeuroForge | None | No runtime AI inference path in this repository |
 
-### 10.2 Governance Inputs
+### 10.2 Evaluation Spine Boundary
+
+`python -m app.evaluation_spine_cli` is a deterministic file-in/file-out
+authority. It consumes an eval-calibration report and writes a ForgeMath lane
+evaluation reference contract. This is distinct from the FastAPI bounded
+execution service and does not add a fourth registered API execution lane.
+
+The emitted `forgemath_output` node remains identity-only. The rich evaluation
+result and `proposal_candidate_allowed` gate live in the referenced contract
+artifact for Forge_Command to resolve.
+
+### 10.3 Governance Inputs
 
 The repo is grounded by external governing docs, but those documents are not
 runtime dependencies. They are operator and design inputs.
@@ -304,8 +338,9 @@ runtime dependencies. They are operator and design inputs.
 
 ## 7. Frontend
 
-No frontend implementation exists in the current Phase 1-7 repo state.
-Operator interaction is through documentation, migrations, and HTTP routes.
+No frontend implementation exists in the current repository state. Operator
+interaction is through documentation, migrations, HTTP routes, and CLI
+contracts.
 
 ### 7.1 Deferred Frontend Work
 
@@ -325,7 +360,7 @@ Operator interaction is through documentation, migrations, and HTTP routes.
 | `app/services/evaluation_service.py` | canonical evaluation persistence, manual-ingest boundary enforcement, canonical artifact hashing, persistence-level active execution exclusivity, trace, replay queue, and incident persistence |
 | `app/services/lifecycle_service.py` | replay/stale/recomputation validation, supersession lifecycle control, lineage reads, and cycle/temporal-order hardening |
 | `app/services/runtime_admission_service.py` | deterministic runtime validation, runtime certificate derivation, runtime admission inspection, and runtime-recovery posture derivation |
-| `app/services/execution_service.py` | bounded canonical execution for supported Phase 6 lanes, supported-lane contract validation, and active execution lineage control |
+| `app/services/execution_service.py` | bounded canonical execution for the three supported lanes, supported-lane contract validation, and active execution lineage control |
 | `app/services/projection_service.py` | governed projection/read-model composition over canonical truth |
 | `app/services/immutability.py` | session-level protection against payload mutation |
 | `app/lineage/emitter.py` | ForgeLineage producer: emits `forgemath_evaluation` + `forgemath_output` (+ optional `consumed` edge from the upstream eval-cal node) to DataForge-Local |
@@ -352,7 +387,7 @@ Operator interaction is through documentation, migrations, and HTTP routes.
 - canonical numeric output/factor values persist as deterministic decimal strings rather than floats
 - output field names and factor names are unique per evaluation
 - output and factor DTOs fail closed when computed rows are semantically incomplete
-- bounded execution supports only governed Phase 6 lanes and canonical_numeric lane family
+- bounded execution supports only `verification_burden`, `recurrence_pressure`, and `exposure_factor` in the `canonical_numeric` lane family
 - bounded execution fails closed when variable, parameter, threshold, policy, runtime, or input bindings are missing or inactive
 - bounded execution fails closed when supported parameter payloads or threshold topologies violate the bounded execution contract
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables
@@ -373,6 +408,7 @@ Operator interaction is through documentation, migrations, and HTTP routes.
 - determinism-sensitive migration packages must declare affected deterministic artifacts and bounded migration posture
 - Evaluation Spine lineage emission (`app/lineage/spine_emit.py`, on `evaluate_calibration_report_file`) is **opt-in and non-blocking**: it emits only when `FORGEMATH_LINEAGE_URL` is set, and any emission failure is logged while the evaluation still completes. It emits only ForgeMath's own lineage (`forgemath_evaluation`/`forgemath_output` + a `consumed` edge to the discovered upstream `eval_cal_record`); the `non_recalculation` posture of the output payload is unchanged — no downstream recomputation of upstream authority
 - The **`forgemath_output` lineage node payload is identity-only** (the canonical `forgemath_output.v1` schema is `additionalProperties:false`: `output_id`/`lane_evaluation_id`/`payload_hash`/`produced_at`/`schema_version`). The rich evaluation result — **including the `proposal_candidate_allowed` gate** — lives in the output **contract artifact**, referenced from the node via `artifact_ref` (`ArtifactRef.v1`: `artifact_id` = the contract path, `payload_hash` = its sha256). A downstream consumer (ForgeCommand's gate-walk) resolves the gate **from the artifact**, never from the node payload — keeping lineage nodes as pure identity and decisions in artifacts
+- arbitrary caller-supplied expressions are never evaluated; supported math remains defined by typed governed contracts and repository code
 
 ---
 
@@ -472,9 +508,8 @@ Phase `20260403_0006` further hardens durability and control posture by:
 
 ## 12. AI Integration
 
-ForgeMath has no runtime AI integration in Phase 1.
-AI involvement is limited to the governed development workflow described by BDS
-documentation and AI-assisted development protocols.
+ForgeMath has no runtime AI inference integration. AI involvement is limited to
+the governed development workflow described by repository and BDS protocols.
 
 ### 12.1 Current AI Posture
 
@@ -482,7 +517,7 @@ documentation and AI-assisted development protocols.
 |------|--------|
 | Runtime inference | Not implemented |
 | Provider routing | Not implemented |
-| AI-assisted development | Active, bounded by repo docs and BDS doctrine |
+| AI-assisted development | Active, bounded by `AGENTS.md`, canonical docs, tests, and BDS doctrine |
 
 
 ---
@@ -529,10 +564,10 @@ No route silently degrades a missing or incompatible binding into a success path
 
 ### 13.6 Execution Failure Posture
 
-- unsupported Phase 6 lanes fail execution with `400`
+- lanes outside `verification_burden`, `recurrence_pressure`, and `exposure_factor` fail execution with `400`
 - missing required input variables fail execution with `400`
 - missing governance bindings fail execution with `404`
-- runtime profiles outside the supported deterministic Phase 6 substrate fail execution with `400`
+- runtime profiles outside the supported deterministic execution substrate fail execution with `400`
 - invalid supported-lane parameter semantics or threshold topology fail execution with `400`
 - duplicate active canonical execution context without explicit supersession fails with `409`
 
@@ -567,7 +602,12 @@ No route silently degrades a missing or incompatible binding into a success path
 | Tool | Version | Purpose |
 |------|---------|---------|
 | pytest | `7.4.3` | Repo test runner |
-| httpx | `0.26.0` | FastAPI-compatible request tooling and dependency surface |
+| httpx | `0.27.2` | FastAPI-compatible request tooling and dependency surface |
+
+`pydantic` and `jsonschema` use bounded ranges rather than exact full-lock
+resolution. CI's clean dependency installation tests the resolved set, but a
+reproducible lock or constraints-file decision remains a separate dependency
+governance follow-up.
 
 
 ---
@@ -575,8 +615,8 @@ No route silently degrades a missing or incompatible binding into a success path
 ## 6. Design System
 
 ForgeMath currently has no end-user UI inside this repo.
-Phase 1 through Phase 7 remain backend-only, so the design system surface is
-limited to JSON contracts, naming consistency, and documentation clarity.
+The repository remains backend-only, so the design system surface is limited
+to JSON contracts, naming consistency, and documentation clarity.
 
 ### 6.1 Current UI Posture
 
@@ -590,40 +630,46 @@ limited to JSON contracts, naming consistency, and documentation clarity.
 
 # Scope
 
-**Document version:** 1.0 (bootstrap scaffold)
+In scope are the ForgeMath-owned governance registries, canonical evaluation
+records, lifecycle and runtime-admission evidence, read projections, bounded
+execution for the three registered lanes, the Evaluation Spine CLI contract,
+and ForgeMath-owned lineage emission.
 
-Scope and authority boundary of this documentation system.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+Out of scope are arbitrary expression execution, new lanes without separate
+governance approval, changes to canonical formulas or numerical semantics,
+downstream recomputation of upstream authority, deployment, external-service
+configuration, and changes to DataForge-Local or Forge_Command.
 
 ---
 
 # Governance
 
-**Document version:** 1.0 (bootstrap scaffold)
+Governed payload truth is append-only and versioned. Supersession closes prior
+truth while preserving history; only explicit lifecycle fields may change in
+place. Missing or incompatible bindings, retired or non-deterministic runtime
+profiles, and cross-lane relationships fail closed.
 
-Ownership, review, and change-authority boundaries.
+Computed canonical truth enters through the governed execution service.
+Manual evaluation ingest is limited to non-computed historical or audit
+records. Projections remain derived read models and never become source truth.
 
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+Formula, weight, threshold, rounding, quantization, and supported-lane changes
+require explicit mathematical governance and updated golden evidence. Caller-
+supplied expressions are prohibited.
 
 ---
 
 # Change Control
 
-**Document version:** 1.0 (bootstrap scaffold)
+Changes must remain bounded, preserve fail-closed authority, and update code,
+contracts, tests, migrations, and canonical documentation together when those
+surfaces are affected. Applied Alembic migrations are immutable; schema changes
+receive a new migration.
 
-Change-control workflow, proposal lifecycle, and audit.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+A pull request records compatibility impact, migration and complete-suite
+evidence, health output, documentation assembly and drift evidence, confirmed
+mathematical-semantics posture, deferred external operations, and rollback
+instructions. Merge and deployment require separate authority.
 
 ---
 
@@ -636,12 +682,27 @@ Change-control workflow, proposal lifecycle, and audit.
 | `FORGEMATH_DATABASE_URL` | string | `sqlite:///./forgemath.db` | `app/config.py`, `app/database.py`, `alembic/env.py` |
 | `FORGEMATH_HOST` | string | `127.0.0.1` | `app/config.py` |
 | `FORGEMATH_PORT` | integer | `8011` | `app/config.py` |
+| `FORGEMATH_LINEAGE_URL` | URL | unset (disabled) | `app/lineage/spine_emit.py`, readiness configuration check |
+| `FORGEMATH_LINEAGE_TOKEN` | string | unset | `app/lineage/spine_emit.py`, readiness configuration check |
 
 ### 5.2 Validation Rules
 
 - database URL must not be empty
 - host must not be empty
 - port must be between `1` and `65535`
+- a configured lineage URL must be an absolute HTTP(S) URL
+- a lineage token without a lineage URL is a degraded configuration
+
+### 5.3 Health Modes
+
+- `python -m app.health_cli` checks only Evaluation Spine authority and contract
+  imports. Database, migrations, FastAPI construction, lane registration, and
+  lineage transport are explicitly reported as not checked.
+- `python -m app.health_cli --readiness` validates configuration, connects to an
+  existing configured database, compares its Alembic revision with repository
+  heads, constructs FastAPI, verifies the exact supported lane set, and checks
+  optional lineage URL and SDK availability when enabled. It never creates a database, applies a
+  migration, sends lineage, mutates truth, or contacts an unconfigured service.
 
 
 ---
@@ -664,13 +725,26 @@ Change-control workflow, proposal lifecycle, and audit.
 | `tests/test_golden_vectors.py` | Per-factor raw/normalized/weighted value pinning for verification_burden; trace summary format stability (_decimal_to_str edge cases); _clamp_unit saturation at unit ceiling via exposure_factor with saturating coefficient inputs |
 | `tests/test_http_contracts.py` | Real HTTP route checks for manual-ingest boundary, execution route behavior, and caller-supplied execution-mode rejection when the environment allows localhost binding |
 | `tests/test_postgres_invariants.py` | Postgres-backed migration/schema invariant checks when `FORGEMATH_POSTGRES_TEST_URL` is supplied |
+| `tests/test_evaluation_spine_phase05.py` | Evaluation Spine contract validation, deterministic decimal scoring, file runner, and fail-closed input behavior |
+| `tests/lineage/` | ForgeLineage emission, identity-only node posture, upstream discovery, non-blocking failure, and default-off behavior against the pinned SDK |
+| `tests/test_health_cli.py` | Lightweight health contract, real version reporting, degraded imports, and optional-lineage readiness posture |
 
 ### 14.2 Execution
 
 ```bash
-python -m pytest tests -q
-FORGEMATH_DATABASE_URL=sqlite:///./hardening_verify.db alembic upgrade head
+FORGEMATH_DATABASE_URL=sqlite:///./qualification.sqlite3 alembic upgrade head
+PYTHONPATH=.ci/forge_lineage/sdk python -m pytest tests -q
+python -m app.health_cli
+FORGEMATH_DATABASE_URL=sqlite:///./qualification.sqlite3 python -m app.health_cli --readiness
+bash doc/system/BUILD.sh
+bash doc/system/validate_snapshots.sh
+git diff --exit-code -- doc/MATSYSTEM.md
 ```
+
+CI checks out the ForgeLineage SDK at the revision pinned in
+`.github/workflows/ci.yml` before running the complete suite. Test database
+paths use the host temporary directory so the same suite runs on Windows and
+POSIX hosts.
 
 ### 14.3 Test Boundary
 
@@ -698,6 +772,13 @@ It also validates the hardening slices for:
 
 HTTP route checks and Postgres-backed invariant checks are present but may skip in
 restricted environments that block localhost binding or do not provide a Postgres URL.
+The Postgres skip is explicit and reproducible: supply
+`FORGEMATH_POSTGRES_TEST_URL` to enable it. CI does not silently ignore any
+other test failure.
+
+Exact pass counts are qualification evidence, not canonical facts. Reproduce
+the current inventory with the complete command above; PRs record the observed
+result and environment at review time instead of preserving stale counts here.
 
 ---
 
@@ -714,26 +795,23 @@ The repo is grounded by these documents:
 - `forge_math_canonical_equation_specification_v_1_initial.md`
 - `forge_math_lane_governance_persistence_replay_and_runtime_contract_v_1_initial.md`
 
-### 15.2 Completed Hardening (Gap-Closure Pass, 2026-04-04)
+### 15.2 Qualification Posture
 
-Gap-closure hardening pass completed against `forge_math_lane_governance_persistence_replay_and_runtime_contract_v_1_initial.md`. Six gaps were identified and closed:
+The authoritative verification path is `.github/workflows/ci.yml` plus the
+commands in §14. CI installs dependencies, applies every migration to a clean
+temporary SQLite database, runs the complete suite with the pinned
+ForgeLineage SDK, validates both health modes, assembles and validates canonical
+documentation, and fails on generated-document drift.
 
-| Gap | Resolution |
-|-----|------------|
-| No per-factor golden-vector pinning | `tests/test_golden_vectors.py`: pins raw/normalized/weighted per factor for verification_burden |
-| No trace summary format stability test | `tests/test_golden_vectors.py`: pins _decimal_to_str output for known edge values |
-| No _clamp_unit > 1.0 path exercised | `tests/test_golden_vectors.py`: exposure_factor with alpha_pub=1.0 + severity="critical" → score 1.25 → clamped 1.0 |
-| No variable registry coverage check test | `tests/test_phase6_execution.py`: registry exists but payload.variables insufficient → 400 |
-| No stale_input_invalidated positive path | `tests/test_phase3_lifecycle.py`: successful transition with input_bundle_invalidated=True |
-| No stale_upstream_changed positive path | `tests/test_phase3_lifecycle.py`: successful transition after variable registry supersession |
+Test counts are dated evidence rather than system truth. Re-run the complete
+command and record the observed pass/skip result in the pull request. The only
+documented environment-dependent tests are localhost HTTP tests when socket
+binding is prohibited and the Postgres schema invariant when
+`FORGEMATH_POSTGRES_TEST_URL` is absent.
 
-**Baseline:** 57 passing tests. **After this hardening pass:** 63 passing tests.
-
-The 4 failures in `test_http_contracts.py` are **not** a DataForge dependency: that module starts a uvicorn subprocess through a hardcoded `PYTHON_BIN` interpreter path, so it fails on any host where that path is absent. They are environment/harness failures, not governance regressions.
-
-**Current suite (2026-06-08):** `python -m pytest tests -q --ignore=tests/lineage` → 72 passing, 1 skipped, 4 failing (the `test_http_contracts.py` cases above). A bare `python -m pytest tests -q` currently aborts during collection because `tests/lineage/` imports the external `forge_lineage_sdk`, which is not in `requirements.txt`.
-
-**Remaining open gap from contract audit:** `forgemath_projection_records` table (contract §11) is not implemented — projections are ephemeral read models in `projection_service.py`. This is architecturally intentional for the current phase and documented as deferred.
+The `forgemath_projection_records` table described by an earlier contract is
+not implemented. Current projections are intentional ephemeral read models in
+`projection_service.py` and do not own truth.
 
 ### 15.3 Deferred Work
 
@@ -742,37 +820,36 @@ The 4 failures in `test_http_contracts.py` are **not** a DataForge dependency: t
 - runtime admission evolution beyond bounded deterministic validation and persisted evidence
 - replay workers and queue processors
 - stale-state automation engine
-- execution expansion beyond the bounded Phase 6 lane wave
+- execution expansion beyond `verification_burden`, `recurrence_pressure`, and `exposure_factor`
 - hybrid gate execution and broader multi-lane orchestration
 - broader database-level exclusion or partitioning strategies if future execution expansion outgrows the current unique active execution key
-- `doc/system/` documentation-scheme consolidation — two chapter numbering schemes currently coexist (the granular content chapters `01-overview-philosophy.md` … `15-handover-migration-notes.md` and the Forge Documentation Protocol v1 skeleton chapters `00-overview.md`, `01-architecture.md`, `10-scope.md`, `20-structure.md`, `30-governance.md`, `40-change-control.md`, `90-appendices.md`). `BUILD.sh` assembles the granular content chapters; consolidating onto one scheme is deferred
-- test-harness portability — `tests/test_http_contracts.py` hardcodes `PYTHON_BIN`, and `tests/lineage/` depends on the un-vendored `forge_lineage_sdk`; both should be made environment-independent (e.g. `sys.executable` / guarded optional import)
+- a locked or constraints-based resolution for the currently ranged Pydantic and JSON Schema dependencies
+- operational deployment evidence, branch-protection policy, and external-service readiness, which remain outside this repository change
 
 ---
 
 # Structure
 
-**Document version:** 1.0 (bootstrap scaffold)
+`doc/system/` is the authored modular source tree. `BUILD.sh` concatenates
+`_index.md` and every two-digit chapter in stable path order, validates the
+assembled snapshot, and writes `doc/MATSYSTEM.md`. The assembled document is a
+generated review artifact and must have no hand-authored drift.
 
-Module/chapter layout and cross-reference rules.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+Root `AGENTS.md` defines repository working rules. `CLAUDE.md` is a concise
+agent-specific companion, `README.md` is an operator entry point, and `docs/`
+contains design references or historical context.
 
 ---
 
 # Appendices
 
-**Document version:** 1.0 (carry-forward)
+## Terms
 
-Appendices, glossary, and cross-references.
-
-## Unmapped legacy chapters
-
-The following legacy chapters were carried forward but could not be
-deterministically mapped to a class-aware slot. Review and place them by
-hand:
-
-- `ForgeMath — Complete System Reference`
+- **Canonical truth:** governed persisted records that own evaluation or
+  registry authority.
+- **Evaluation Spine CLI:** the file-in/file-out calibration authority, distinct
+  from the FastAPI lane-execution service.
+- **ForgeLineage emission:** default-off, opt-in publication of ForgeMath-owned
+  lineage through the pinned SDK.
+- **Readiness:** non-destructive inspection of configured local service
+  dependencies; it never creates or migrates a database or sends lineage.

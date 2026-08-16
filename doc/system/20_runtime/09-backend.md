@@ -8,7 +8,7 @@
 | `app/services/evaluation_service.py` | canonical evaluation persistence, manual-ingest boundary enforcement, canonical artifact hashing, persistence-level active execution exclusivity, trace, replay queue, and incident persistence |
 | `app/services/lifecycle_service.py` | replay/stale/recomputation validation, supersession lifecycle control, lineage reads, and cycle/temporal-order hardening |
 | `app/services/runtime_admission_service.py` | deterministic runtime validation, runtime certificate derivation, runtime admission inspection, and runtime-recovery posture derivation |
-| `app/services/execution_service.py` | bounded canonical execution for supported Phase 6 lanes, supported-lane contract validation, and active execution lineage control |
+| `app/services/execution_service.py` | bounded canonical execution for the three supported lanes, supported-lane contract validation, and active execution lineage control |
 | `app/services/projection_service.py` | governed projection/read-model composition over canonical truth |
 | `app/services/immutability.py` | session-level protection against payload mutation |
 | `app/lineage/emitter.py` | ForgeLineage producer: emits `forgemath_evaluation` + `forgemath_output` (+ optional `consumed` edge from the upstream eval-cal node) to DataForge-Local |
@@ -35,7 +35,7 @@
 - canonical numeric output/factor values persist as deterministic decimal strings rather than floats
 - output field names and factor names are unique per evaluation
 - output and factor DTOs fail closed when computed rows are semantically incomplete
-- bounded execution supports only governed Phase 6 lanes and canonical_numeric lane family
+- bounded execution supports only `verification_burden`, `recurrence_pressure`, and `exposure_factor` in the `canonical_numeric` lane family
 - bounded execution fails closed when variable, parameter, threshold, policy, runtime, or input bindings are missing or inactive
 - bounded execution fails closed when supported parameter payloads or threshold topologies violate the bounded execution contract
 - bounded execution persists through the existing evaluation service and does not bypass canonical truth tables
@@ -56,3 +56,4 @@
 - determinism-sensitive migration packages must declare affected deterministic artifacts and bounded migration posture
 - Evaluation Spine lineage emission (`app/lineage/spine_emit.py`, on `evaluate_calibration_report_file`) is **opt-in and non-blocking**: it emits only when `FORGEMATH_LINEAGE_URL` is set, and any emission failure is logged while the evaluation still completes. It emits only ForgeMath's own lineage (`forgemath_evaluation`/`forgemath_output` + a `consumed` edge to the discovered upstream `eval_cal_record`); the `non_recalculation` posture of the output payload is unchanged — no downstream recomputation of upstream authority
 - The **`forgemath_output` lineage node payload is identity-only** (the canonical `forgemath_output.v1` schema is `additionalProperties:false`: `output_id`/`lane_evaluation_id`/`payload_hash`/`produced_at`/`schema_version`). The rich evaluation result — **including the `proposal_candidate_allowed` gate** — lives in the output **contract artifact**, referenced from the node via `artifact_ref` (`ArtifactRef.v1`: `artifact_id` = the contract path, `payload_hash` = its sha256). A downstream consumer (ForgeCommand's gate-walk) resolves the gate **from the artifact**, never from the node payload — keeping lineage nodes as pure identity and decisions in artifacts
+- arbitrary caller-supplied expressions are never evaluated; supported math remains defined by typed governed contracts and repository code

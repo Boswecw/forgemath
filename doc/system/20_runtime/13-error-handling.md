@@ -40,10 +40,10 @@ No route silently degrades a missing or incompatible binding into a success path
 
 ### 13.6 Execution Failure Posture
 
-- unsupported Phase 6 lanes fail execution with `400`
+- lanes outside `verification_burden`, `recurrence_pressure`, and `exposure_factor` fail execution with `400`
 - missing required input variables fail execution with `400`
 - missing governance bindings fail execution with `404`
-- runtime profiles outside the supported deterministic Phase 6 substrate fail execution with `400`
+- runtime profiles outside the supported deterministic execution substrate fail execution with `400`
 - invalid supported-lane parameter semantics or threshold topology fail execution with `400`
 - duplicate active canonical execution context without explicit supersession fails with `409`
 

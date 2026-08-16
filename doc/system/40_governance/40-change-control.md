@@ -1,10 +1,11 @@
 # Change Control
 
-**Document version:** 1.0 (bootstrap scaffold)
+Changes must remain bounded, preserve fail-closed authority, and update code,
+contracts, tests, migrations, and canonical documentation together when those
+surfaces are affected. Applied Alembic migrations are immutable; schema changes
+receive a new migration.
 
-Change-control workflow, proposal lifecycle, and audit.
-
-> This chapter is a registry-generated bootstrap scaffold for a
-> `documentation` class documentation system. Replace this placeholder with
-> real authored content. Registry will not invent repo truth that is not
-> already present in the repo.
+A pull request records compatibility impact, migration and complete-suite
+evidence, health output, documentation assembly and drift evidence, confirmed
+mathematical-semantics posture, deferred external operations, and rollback
+instructions. Merge and deployment require separate authority.

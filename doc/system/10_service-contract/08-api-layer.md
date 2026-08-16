@@ -8,6 +8,13 @@ Implemented routes live under `/api/v1/forgemath/governance` and `/api/v1/forgem
 |-------|------|---------|
 | `GET` | `/health` | Service health and phase marker |
 
+The HTTP route is separate from the operational CLI health contract.
+`python -m app.health_cli` is Forge_Command's lightweight Evaluation Spine
+producer probe and does not inspect the database or FastAPI readiness.
+`python -m app.health_cli --readiness` explicitly inspects configuration, an
+existing database, migration alignment, FastAPI construction, supported-lane
+registration, and optional lineage configuration without mutating state.
+
 ### 8.2 Governance Routes
 
 | Family | Create | List | Get version |
@@ -39,6 +46,10 @@ through `POST /lane-executions`.
 | Family | Action | Path |
 |-------|--------|------|
 | Bounded canonical execution | `POST` | `/lane-executions` |
+
+This route supports exactly `verification_burden`, `recurrence_pressure`, and
+`exposure_factor`. It does not execute the Evaluation Spine CLI lane contract
+or caller-supplied expressions.
 
 ### 8.5 Lifecycle Routes
 

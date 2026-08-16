@@ -1,13 +1,12 @@
 # Appendices
 
-**Document version:** 1.0 (carry-forward)
+## Terms
 
-Appendices, glossary, and cross-references.
-
-## Unmapped legacy chapters
-
-The following legacy chapters were carried forward but could not be
-deterministically mapped to a class-aware slot. Review and place them by
-hand:
-
-- `ForgeMath — Complete System Reference`
+- **Canonical truth:** governed persisted records that own evaluation or
+  registry authority.
+- **Evaluation Spine CLI:** the file-in/file-out calibration authority, distinct
+  from the FastAPI lane-execution service.
+- **ForgeLineage emission:** default-off, opt-in publication of ForgeMath-owned
+  lineage through the pinned SDK.
+- **Readiness:** non-destructive inspection of configured local service
+  dependencies; it never creates or migrates a database or sends lineage.

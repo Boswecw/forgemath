@@ -1,31 +1,31 @@
-        # ForgeMath - Compiled System Reference
+# ForgeMath - Compiled System Reference
 
-        **Designation:** MAT
-        **Document role:** Canonical compiled technical reference for ForgeMath
-        **Source:** `doc/system/`
-        **Build command:** `bash doc/system/BUILD.sh`
-        **Document version:** 2.0 (2026-06-22) - canonical compliance migration
-        **Protocol:** BDS Documentation Protocol v2.0; BDS Repo Documentation System Canonical Compliance Standard
+**Designation:** MAT
+**Document role:** Canonical compiled technical reference for ForgeMath
+**Source:** `doc/system/`
+**Build command:** `bash doc/system/BUILD.sh`
+**Document version:** 2.1 (2026-08-16) - truth reconciliation and qualification
+**Protocol:** BDS Documentation Protocol v2.0; BDS Repo Documentation System Canonical Compliance Standard
 
-        > **Generated artifact warning:** `doc/MATSYSTEM.md` is assembled output. Edit
-        > the source modules under `doc/system/` and rebuild. Hand edits to the
-        > compiled artifact are overwritten by the next build.
+> **Generated artifact warning:** `doc/MATSYSTEM.md` is assembled output. Edit
+> the source modules under `doc/system/` and rebuild. Hand edits to the
+> compiled artifact are overwritten by the next build.
 
-        Assembly contract:
+Assembly contract:
 
-        - Command: `bash doc/system/BUILD.sh`
-        - Validation: `bash doc/system/validate_snapshots.sh` runs during assembly
-        - Primary output: `doc/MATSYSTEM.md`
+- Command: `bash doc/system/BUILD.sh`
+- Validation: `bash doc/system/validate_snapshots.sh` runs during assembly
+- Primary output: `doc/MATSYSTEM.md`
 
-        This `doc/system/` tree is the canonical source of truth for ForgeMath. It uses
-        explicit **truth classes**: canonical facts define repo role, authority
-        boundaries, contract behavior, runtime behavior, and verification doctrine;
-        snapshot facts are dated, audit-derived counts and current implementation
-        inventory that may drift between audits.
+This `doc/system/` tree is the canonical source of truth for ForgeMath. It uses
+explicit **truth classes**: canonical facts define repo role, authority
+boundaries, contract behavior, runtime behavior, and verification doctrine;
+snapshot facts are dated evidence such as current implementation inventory or
+qualification results and must name their date and reproduction command.
 
-        | Part | File | Contents |
-        | --- | --- | --- |
-        | §1 | `00_overview/00-overview.md` | Overview |
+| Part | File | Contents |
+| --- | --- | --- |
+| §1 | `00_overview/00-overview.md` | Overview |
 | §2 | `00_overview/01-architecture.md` | Architecture |
 | §3 | `00_overview/01-overview-philosophy.md` | 1. Overview & Philosophy |
 | §4 | `00_overview/02-architecture.md` | 2. Architecture |
@@ -48,8 +48,8 @@
 | §21 | `99_appendices/20-structure.md` | Structure |
 | §22 | `99_appendices/90-appendices.md` | Appendices |
 
-        ## Quick Assembly
+## Quick Assembly
 
-        ```bash
-        bash doc/system/BUILD.sh
-        ```
+```bash
+bash doc/system/BUILD.sh
+```
